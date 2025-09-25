@@ -1,0 +1,14 @@
+{
+  "name": "gacha-app",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "lint": "eslint *.js --fix",
+    "test:smoke": "node test-smoke.js"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.36.0",
+    "eslint": "^9.13.0"
+  }
+}

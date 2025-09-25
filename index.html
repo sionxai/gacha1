@@ -1,0 +1,1286 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>가챠 시뮬레이터 — 확률 지정 · 시드 · 통계</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="icon" type="image/png" href="assets/favicon.png" />
+  </head>
+  <body data-page="index" data-default-section="gacha" data-active-section="gacha">
+    <div id="appWrap" class="wrap">
+      <header class="top">
+        <h1>가챠 시뮬레이터</h1>
+        <div class="hint">확률 직접 지정 · 1/10/100회 · 통계/시드/보장</div>
+        <span class="sep"></span>
+        <span class="muted small" id="whoami"></span>
+        <span class="muted small">포인트: <b id="points">-</b></span>
+        <span class="muted small">골드: <b id="gold">-</b></span>
+        <span class="muted small">다이아: <b id="diamonds">-</b></span>
+        <span class="muted small">펫 뽑기권: <b id="petTicketCount">0</b></span>
+        <span class="muted small">성수: <b id="holyWaterCount">0</b></span>
+        <button id="toUser">사용자 페이지</button>
+        <button id="toAdmin">관리자 페이지</button>
+        <button id="logoutBtn">로그아웃</button>
+        <button id="questBtn" type="button" class="header-quest">
+          퀘스트
+          <span id="questBadge" class="quest-badge" hidden>0</span>
+        </button>
+        <button id="userOptionsBtn" type="button">옵션</button>
+      </header>
+
+      <div class="grid" style="margin-top:10px">
+        <section class="panel" data-admin="true" id="adminPanel" data-section="gacha" style="display:none">
+          <h2>관리자 페이지</h2>
+
+          <!-- 탭 네비게이션 -->
+          <div class="admin-tabs">
+            <button class="admin-tab active" data-tab="difficulty">게임 난이도</button>
+            <button class="admin-tab" data-tab="character">캐릭터 밸런스</button>
+            <button class="admin-tab" data-tab="gacha">뽑기 설정</button>
+            <button class="admin-tab" data-tab="shop">상점 가격</button>
+            <button class="admin-tab" data-tab="backup">백업 & 복구</button>
+            <button class="admin-tab" data-tab="rewards">재화 지급</button>
+          </div>
+
+          <!-- 1. 게임 난이도 조정 -->
+          <div class="admin-tab-content" data-tab="difficulty">
+            <div class="row">
+              <h3 class="muted" style="margin:0">🎮 게임 난이도 조정</h3>
+              <div class="muted">몬스터 강도, 드롭률, 골드 보상 등을 조정합니다</div>
+            </div>
+
+            <!-- 드랍 확률 설정 -->
+            <div class="row" style="margin-top:14px">
+              <h4 class="muted" style="margin:0">드랍 확률 설정</h4>
+            </div>
+            <table class="stats" id="dropConfigTable" aria-label="드랍 확률 설정">
+              <thead>
+                <tr><th>아이템</th><th>기본 p</th><th>레벨당 증가</th><th>최대 p</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>가속 물약</td>
+                  <td><input id="dropPotionBase" type="number" step="any" min="0" max="1" style="width:90px" /></td>
+                  <td><input id="dropPotionPer" type="number" step="any" min="0" max="1" style="width:90px" /></td>
+                  <td><input id="dropPotionMax" type="number" step="any" min="0" max="1" style="width:90px" /></td>
+                </tr>
+                <tr>
+                  <td>초 가속 물약</td>
+                  <td><input id="dropHyperBase" type="number" step="any" min="0" max="1" style="width:90px" /></td>
+                  <td><input id="dropHyperPer" type="number" step="any" min="0" max="1" style="width:90px" /></td>
+                  <td><input id="dropHyperMax" type="number" step="any" min="0" max="1" style="width:90px" /></td>
+                </tr>
+                <tr>
+                  <td>보호권</td>
+                  <td><input id="dropProtectBase" type="number" step="any" min="0" max="1" style="width:90px" /></td>
+                  <td><input id="dropProtectPer" type="number" step="any" min="0" max="1" style="width:90px" /></td>
+                  <td><input id="dropProtectMax" type="number" step="any" min="0" max="1" style="width:90px" /></td>
+                </tr>
+                <tr>
+                  <td>강화권</td>
+                  <td><input id="dropEnhanceBase" type="number" step="any" min="0" max="1" style="width:90px" /></td>
+                  <td><input id="dropEnhancePer" type="number" step="any" min="0" max="1" style="width:90px" /></td>
+                  <td><input id="dropEnhanceMax" type="number" step="any" min="0" max="1" style="width:90px" /></td>
+                </tr>
+                <tr>
+                  <td>전투부활권</td>
+                  <td><input id="dropBattleResBase" type="number" step="any" min="0" max="1" style="width:90px" /></td>
+                  <td><input id="dropBattleResPer" type="number" step="any" min="0" max="1" style="width:90px" /></td>
+                  <td><input id="dropBattleResMax" type="number" step="any" min="0" max="1" style="width:90px" /></td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- 골드 보상 설정 -->
+            <div class="row" style="margin-top:14px">
+              <h4 class="muted" style="margin:0">골드 보상 설정</h4>
+            </div>
+            <table class="stats" id="goldConfigTable" aria-label="골드 보상 설정">
+              <thead><tr><th></th><th>Lv1</th><th>Lv999</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td>최소 골드</td>
+                  <td><input id="goldMinLow" type="number" min="0" step="1" style="width:90px" /></td>
+                  <td><input id="goldMinHigh" type="number" min="0" step="1" style="width:90px" /></td>
+                </tr>
+                <tr>
+                  <td>최대 골드</td>
+                  <td><input id="goldMaxLow" type="number" min="0" step="1" style="width:90px" /></td>
+                  <td><input id="goldMaxHigh" type="number" min="0" step="1" style="width:90px" /></td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- 몬스터 난이도 설정 -->
+            <div class="row" style="margin-top:16px">
+              <h4 class="muted" style="margin:0">몬스터 난이도</h4>
+            </div>
+            <table class="stats" id="monsterConfigTable" aria-label="몬스터 난이도 설정">
+              <thead>
+                <tr><th>기준 전투력 (Lv.1)</th><th>최대 전투력 (Lv.999)</th><th>성장 곡선</th><th>난이도 배율</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><input id="monsterBasePower" type="number" step="any" min="1" style="width:140px" /></td>
+                  <td><input id="monsterMaxPower" type="number" step="any" min="1" style="width:140px" /></td>
+                  <td><input id="monsterCurve" type="number" step="0.1" min="0.1" max="10" style="width:120px" /></td>
+                  <td>
+                    <div class="difficulty-adjust" style="align-items:center;gap:12px;">
+                      <div class="difficulty-stepper" style="display:flex;gap:6px;align-items:center;">
+                        <button type="button" id="monsterDifficultyMinus">−</button>
+                        <input id="monsterDifficulty" type="number" step="0.05" min="0.1" max="10" style="width:120px" />
+                        <button type="button" id="monsterDifficultyPlus">＋</button>
+                      </div>
+                      <button type="button" id="monsterDifficultyApply" class="primary">적용</button>
+                    </div>
+                    <div id="monsterDifficultyStatus" class="muted small" aria-live="polite" style="margin-top:6px;"></div>
+                  </td>
+                </tr>
+                <tr>
+                  <td colspan="4">
+                    <div class="difficulty-adjust" style="gap:18px;flex-wrap:wrap;align-items:flex-end;">
+                      <label class="muted small" style="display:flex;flex-direction:column;gap:6px;">
+                        <span>이지 난이도 조정 (%)</span>
+                        <input id="difficultyEasyPercent" type="number" step="1" min="-90" max="0" style="width:120px" />
+                        <span>최종 배율: <span id="difficultyEasyPreview">-</span></span>
+                      </label>
+                      <label class="muted small" style="display:flex;flex-direction:column;gap:6px;">
+                        <span>하드 난이도 조정 (%)</span>
+                        <input id="difficultyHardPercent" type="number" step="1" min="0" max="1000" style="width:120px" />
+                        <span>최종 배율: <span id="difficultyHardPreview">-</span></span>
+                      </label>
+                      <div class="muted small" style="display:flex;flex-direction:column;gap:6px;">
+                        <span>노멀 난이도 배율</span>
+                        <span id="difficultyNormalPreview">-</span>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td colspan="4">
+                    <div class="monster-preview" id="monsterPreview" style="margin-top:12px;">
+                      <h4 class="muted" style="margin:0 0 8px 0;">100레벨 기준 몬스터 미리보기</h4>
+                      <table class="stats" id="monsterPreviewTable" aria-label="100레벨 기준 몬스터 통계">
+                        <thead>
+                          <tr>
+                            <th>난이도</th>
+                            <th>배율</th>
+                            <th>전투력</th>
+                            <th>HP</th>
+                            <th>ATK</th>
+                            <th>DEF</th>
+                            <th>SPD</th>
+                            <th>치명타 확률</th>
+                            <th>치명타 피해</th>
+                            <th>회피</th>
+                          </tr>
+                        </thead>
+                        <tbody></tbody>
+                      </table>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- 2. 캐릭터 밸런스 조정 -->
+          <div class="admin-tab-content" data-tab="character" style="display:none">
+            <div class="row">
+              <h3 class="muted" style="margin:0">👥 캐릭터 밸런스 조정</h3>
+              <div class="muted">각 클래스별 능력치와 스킬 배율을 조정합니다</div>
+            </div>
+
+            <div class="row" style="margin-top:14px">
+              <h4 class="muted" style="margin:0">캐릭터 배율 조정</h4>
+              <p class="muted small">배율 1.00이 기본값입니다. 스킬 배율은 클래스 스킬과 필살기 피해에 곱해집니다.</p>
+            </div>
+            <table class="stats" id="characterBalanceTable" aria-label="캐릭터 배율 조정">
+              <thead>
+                <tr><th>클래스</th><th>스킬 배율</th><th>HP</th><th>ATK</th><th>DEF</th><th>SPD</th><th>CRI</th><th>CRIT DMG</th><th>DODGE</th></tr>
+              </thead>
+              <tbody>
+                <tr data-class="warrior">
+                  <td>전사</td>
+                  <td><input type="number" step="0.05" min="0" data-class="warrior" data-field="skill" /></td>
+                  <td><input type="number" step="0.05" min="0" data-class="warrior" data-field="hp" /></td>
+                  <td><input type="number" step="0.05" min="0" data-class="warrior" data-field="atk" /></td>
+                  <td><input type="number" step="0.05" min="0" data-class="warrior" data-field="def" /></td>
+                  <td><input type="number" step="0.05" min="0" data-class="warrior" data-field="speed" /></td>
+                  <td><input type="number" step="0.05" min="0" data-class="warrior" data-field="critRate" /></td>
+                  <td><input type="number" step="0.05" min="0" data-class="warrior" data-field="critDmg" /></td>
+                  <td><input type="number" step="0.05" min="0" data-class="warrior" data-field="dodge" /></td>
+                </tr>
+                <tr data-class="mage">
+                  <td>마법사</td>
+                  <td><input type="number" step="0.05" min="0" data-class="mage" data-field="skill" /></td>
+                  <td><input type="number" step="0.05" min="0" data-class="mage" data-field="hp" /></td>
+                  <td><input type="number" step="0.05" min="0" data-class="mage" data-field="atk" /></td>
+                  <td><input type="number" step="0.05" min="0" data-class="mage" data-field="def" /></td>
+                  <td><input type="number" step="0.05" min="0" data-class="mage" data-field="speed" /></td>
+                  <td><input type="number" step="0.05" min="0" data-class="mage" data-field="critRate" /></td>
+                  <td><input type="number" step="0.05" min="0" data-class="mage" data-field="critDmg" /></td>
+                  <td><input type="number" step="0.05" min="0" data-class="mage" data-field="dodge" /></td>
+                </tr>
+                <tr data-class="archer">
+                  <td>궁수</td>
+                  <td><input type="number" step="0.05" min="0" data-class="archer" data-field="skill" /></td>
+                  <td><input type="number" step="0.05" min="0" data-class="archer" data-field="hp" /></td>
+                  <td><input type="number" step="0.05" min="0" data-class="archer" data-field="atk" /></td>
+                  <td><input type="number" step="0.05" min="0" data-class="archer" data-field="def" /></td>
+                  <td><input type="number" step="0.05" min="0" data-class="archer" data-field="speed" /></td>
+                  <td><input type="number" step="0.05" min="0" data-class="archer" data-field="critRate" /></td>
+                  <td><input type="number" step="0.05" min="0" data-class="archer" data-field="critDmg" /></td>
+                  <td><input type="number" step="0.05" min="0" data-class="archer" data-field="dodge" /></td>
+                </tr>
+                <tr data-class="rogue">
+                  <td>도적</td>
+                  <td><input type="number" step="0.05" min="0" data-class="rogue" data-field="skill" /></td>
+                  <td><input type="number" step="0.05" min="0" data-class="rogue" data-field="hp" /></td>
+                  <td><input type="number" step="0.05" min="0" data-class="rogue" data-field="atk" /></td>
+                  <td><input type="number" step="0.05" min="0" data-class="rogue" data-field="def" /></td>
+                  <td><input type="number" step="0.05" min="0" data-class="rogue" data-field="speed" /></td>
+                  <td><input type="number" step="0.05" min="0" data-class="rogue" data-field="critRate" /></td>
+                  <td><input type="number" step="0.05" min="0" data-class="rogue" data-field="critDmg" /></td>
+                  <td><input type="number" step="0.05" min="0" data-class="rogue" data-field="dodge" /></td>
+                </tr>
+                <tr data-class="goddess">
+                  <td>여신</td>
+                  <td><input type="number" step="0.05" min="0" data-class="goddess" data-field="skill" /></td>
+                  <td><input type="number" step="0.05" min="0" data-class="goddess" data-field="hp" /></td>
+                  <td><input type="number" step="0.05" min="0" data-class="goddess" data-field="atk" /></td>
+                  <td><input type="number" step="0.05" min="0" data-class="goddess" data-field="def" /></td>
+                  <td><input type="number" step="0.05" min="0" data-class="goddess" data-field="speed" /></td>
+                  <td><input type="number" step="0.05" min="0" data-class="goddess" data-field="critRate" /></td>
+                  <td><input type="number" step="0.05" min="0" data-class="goddess" data-field="critDmg" /></td>
+                  <td><input type="number" step="0.05" min="0" data-class="goddess" data-field="dodge" /></td>
+                </tr>
+              </tbody>
+            </table>
+            <div id="characterBalanceMsg" class="muted small" aria-live="polite"></div>
+          </div>
+
+          <!-- 뽑기 설정 -->
+          <div class="admin-tab-content" data-tab="gacha" style="display:none">
+            <div class="row">
+              <h3 class="muted" style="margin:0">🎯 뽑기 프리셋 관리</h3>
+              <div class="muted">버튼 문구, 포인트, 확률 보정 값을 수정하면 즉시 적용됩니다.</div>
+            </div>
+            <div class="preset-editor-grid" style="margin-top:14px">
+              <section class="preset-section">
+                <div class="row preset-admin-row" style="align-items:center; justify-content:space-between; gap:12px;">
+                  <h4 class="muted" style="margin:0">장비 뽑기 프리셋</h4>
+                  <button id="gearPresetReset" type="button">장비 프리셋 초기화</button>
+                </div>
+                <table class="stats preset-table" aria-label="장비 뽑기 프리셋" style="margin-top:10px">
+                  <thead>
+                    <tr><th>구분</th><th>표시 이름</th><th>포인트</th><th>S+ 증가(%)</th><th>설명 문구</th><th>표시 메시지</th><th>초기화</th></tr>
+                  </thead>
+                  <tbody id="gearPresetTableBody"></tbody>
+                </table>
+                <div class="admin-probability-card" style="margin-top:18px">
+                  <div class="row">
+                    <h4 class="muted" style="margin:0">🎲 뽑기 확률 정보</h4>
+                    <div class="muted small">가챠 시뮬레이터와 동일한 확률표입니다.</div>
+                  </div>
+                  <div class="row gacha-type-row">
+                    <button id="adminProbDisplayModeGear" class="mode-btn active" type="button">장비 확률</button>
+                    <button id="adminProbDisplayModeCharacter" class="mode-btn" type="button">캐릭터 확률</button>
+                  </div>
+                  <div id="adminGearProbabilityWrap">
+                    <div class="probability-table-container">
+                      <h5 class="muted" style="margin:0">장비 뽑기 확률표</h5>
+                      <table class="probability-table" id="adminGearProbabilityTable" aria-label="관리자 장비 뽑기 확률표">
+                        <thead>
+                          <tr>
+                            <th>등급</th>
+                            <th class="prob-basic">기본 뽑기<br><span class="small-cost">(100/900pt)</span></th>
+                            <th class="prob-boost">확률업 뽑기<br><span class="small-cost">(500/4,500pt)</span></th>
+                            <th class="prob-premium">프리미엄 뽑기<br><span class="small-cost">(2,000/18,000pt)</span></th>
+                          </tr>
+                        </thead>
+                        <tbody id="adminGearProbabilityBody"></tbody>
+                      </table>
+                    </div>
+                  </div>
+                  <div id="adminCharacterProbabilityWrap" style="display:none">
+                    <div class="probability-table-container">
+                      <h5 class="muted" style="margin:0">캐릭터 뽑기 확률표</h5>
+                      <table class="probability-table" id="adminCharacterProbabilityTable" aria-label="관리자 캐릭터 뽑기 확률표">
+                        <thead>
+                          <tr>
+                            <th>등급</th>
+                            <th class="prob-basic">기본 뽑기<br><span class="small-cost">(10,000/90,000pt)</span></th>
+                            <th class="prob-boost">확률업 뽑기<br><span class="small-cost">(50,000/450,000pt)</span></th>
+                            <th class="prob-premium">프리미엄 뽑기<br><span class="small-cost">(200,000/1,800,000pt)</span></th>
+                          </tr>
+                        </thead>
+                        <tbody id="adminCharacterProbabilityBody"></tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+                <div class="row admin-config-controls" style="margin-top:18px; gap:16px; align-items:flex-end;">
+                  <label>입력 모드<select id="adminMode"><option value="weight" selected>가중치</option><option value="percent">퍼센트(%)</option></select></label>
+                  <label>시드<input id="adminSeed" type="text" placeholder="예: lucky-777" /></label>
+                  <label><input id="adminLock" type="checkbox" /> 설정 잠금</label>
+                </div>
+
+                <!-- 가챠 타입 선택 및 가중치 설정 -->
+                <div class="row gacha-type-row" style="margin-top:18px;">
+                  <button id="adminGachaModeGearConfig" class="mode-btn active" type="button">장비 설정</button>
+                  <button id="adminGachaModePetConfig" class="mode-btn" type="button">펫 설정</button>
+                  <button id="adminGachaModeCharacterConfig" class="mode-btn" type="button">캐릭터 설정</button>
+                </div>
+
+                <div id="adminGearConfigWrap" style="margin-top:12px;">
+                  <table class="weights" id="adminWeightsTable" aria-label="등급별 가중치 테이블">
+                    <thead>
+                      <tr><th>등급</th><th>입력값</th><th>정규화 확률</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                  <div class="row" style="margin-top:12px;">
+                    <label><input id="adminPityEnabled" type="checkbox" /> 천장(보장)</label>
+                    <label>기준<select id="adminPityFloor"><option value="S">S 이상</option><option value="A">A 이상</option></select></label>
+                    <label>스팬<input id="adminPitySpan" type="number" min="1" value="90" style="width:90px" /></label>
+                  </div>
+                  <div class="row" style="margin-top:8px;">
+                    <label><input id="adminG10Enabled" type="checkbox" /> 10연 최소 보장</label>
+                    <label>최소<select id="adminG10Tier"><option value="A">A 이상</option><option value="S">S 이상</option></select></label>
+                  </div>
+                </div>
+
+                <div id="adminPetConfigWrap" style="display:none; margin-top:12px;">
+                  <p class="muted small">펫 뽑기는 상대 가중치 비율로 계산되며, 관리자만 수정할 수 있습니다.</p>
+                  <table class="stats" id="adminPetWeightTable" aria-label="펫 가챠 가중치 설정">
+                    <thead><tr><th>펫</th><th>가중치</th></tr></thead>
+                    <tbody id="adminPetWeightTableBody"></tbody>
+                  </table>
+                </div>
+
+                <div id="adminCharacterConfigWrap" style="display:none; margin-top:12px;">
+                  <p class="muted small">캐릭터 뽑기 확률을 등급별로 조정합니다. 장비 설정과는 독립적으로 저장됩니다.</p>
+                  <table class="weights" id="adminCharacterWeightsTable" aria-label="캐릭터 가챠 가중치 테이블">
+                    <thead>
+                      <tr><th>등급</th><th>입력값</th><th>정규화 확률</th></tr>
+                    </thead>
+                    <tbody id="adminCharacterWeightsBody"></tbody>
+                  </table>
+                </div>
+              </section>
+              <section class="preset-section">
+                <div class="row preset-admin-row" style="align-items:center; justify-content:space-between; gap:12px;">
+                  <h4 class="muted" style="margin:0">캐릭터 뽑기 프리셋</h4>
+                  <button id="characterPresetReset" type="button">캐릭터 프리셋 초기화</button>
+                </div>
+                <table class="stats preset-table" aria-label="캐릭터 뽑기 프리셋" style="margin-top:10px">
+                  <thead>
+                    <tr><th>구분</th><th>표시 이름</th><th>포인트</th><th>S+ 증가(%)</th><th>설명 문구</th><th>표시 메시지</th><th>초기화</th></tr>
+                  </thead>
+                  <tbody id="characterPresetTableBody"></tbody>
+                </table>
+              </section>
+            </div>
+          </div>
+
+          <!-- 3. 상점 가격 조정 -->
+          <div class="admin-tab-content" data-tab="shop" style="display:none">
+            <div class="row">
+              <h3 class="muted" style="margin:0">🛒 상점 가격 조정</h3>
+              <div class="muted">게임 내 아이템 가격을 설정합니다</div>
+            </div>
+
+            <div class="row" style="margin-top:14px">
+              <h4 class="muted" style="margin:0">상점 가격 설정</h4>
+            </div>
+            <table class="stats" id="shopPriceTable" aria-label="상점 가격 설정">
+              <thead><tr><th>아이템</th><th>가격</th></tr></thead>
+              <tbody>
+                <tr><td>가속 물약</td><td><input id="priceInputPotion" type="number" min="0" step="1" style="width:100px" /></td></tr>
+                <tr><td>초 가속 물약</td><td><input id="priceInputHyper" type="number" min="0" step="1" style="width:100px" /></td></tr>
+                <tr><td>보호권</td><td><input id="priceInputProtect" type="number" min="0" step="1" style="width:100px" /></td></tr>
+                <tr><td>강화권</td><td><input id="priceInputEnhance" type="number" min="0" step="1" style="width:100px" /></td></tr>
+                <tr><td>전투부활권</td><td><input id="priceInputBattleRes" type="number" min="0" step="1" style="width:110px" /></td></tr>
+                <tr><td>초보자 패키지</td><td><input id="priceInputStarter" type="number" min="0" step="1" style="width:110px" /></td></tr>
+              </tbody>
+            </table>
+
+            <div class="row" style="margin-top:14px">
+              <h4 class="muted" style="margin:0">물약 지속시간 & 쿨다운</h4>
+            </div>
+            <table class="stats" id="potionConfigTable" aria-label="물약 지속 및 쿨다운 설정">
+              <thead>
+                <tr><th>아이템</th><th>지속 (초)</th><th>수동 쿨타임 (초)</th><th>자동 쿨타임 (초)</th><th>배속</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>가속 물약</td>
+                  <td><input id="potionDuration" type="number" step="0.1" min="0" style="width:110px" /></td>
+                  <td><input id="potionManualCd" type="number" step="0.1" min="0" style="width:110px" /></td>
+                  <td><input id="potionAutoCd" type="number" step="0.1" min="0" style="width:110px" /></td>
+                  <td><input id="potionSpeedMult" type="number" step="0.1" min="0" style="width:110px" /></td>
+                </tr>
+                <tr>
+                  <td>초 가속 물약</td>
+                  <td><input id="hyperDuration" type="number" step="0.1" min="0" style="width:110px" /></td>
+                  <td><input id="hyperManualCd" type="number" step="0.1" min="0" style="width:110px" /></td>
+                  <td><input id="hyperAutoCd" type="number" step="0.1" min="0" style="width:110px" /></td>
+                  <td><input id="hyperSpeedMult" type="number" step="0.1" min="0" style="width:110px" /></td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="row" style="margin-top:8px">
+              <button id="saveDrops">설정 저장</button>
+            </div>
+          </div>
+
+          <!-- 4. 백업 & 복구 -->
+          <div class="admin-tab-content" data-tab="backup" style="display:none">
+            <div class="row">
+              <h3 class="muted" style="margin:0">💾 백업 & 복구</h3>
+              <div class="muted">게임 데이터 백업, 복구 및 스냅샷 관리</div>
+            </div>
+
+            <div class="row" style="margin-top:14px">
+              <h4 class="muted" style="margin:0">데이터 복구</h4>
+            </div>
+            <div class="row preset-admin-row">
+              <label>사용자<select id="adminUserSelect2"></select></label>
+              <span class="muted small" id="adminUserStats2"></span>
+            </div>
+            <div class="row">
+              <button id="restoreFromMirror">미러 백업으로 복원</button>
+              <span class="muted small">최신 자동 백업에서 복원합니다</span>
+            </div>
+
+            <div class="row" style="margin-top:14px">
+              <h4 class="muted" style="margin:0">스냅샷 관리</h4>
+            </div>
+            <div class="row preset-admin-row">
+              <label>사용자<select id="adminUserSelect3"></select></label>
+              <span class="muted small" id="adminUserStats3"></span>
+            </div>
+            <div class="row">
+              <label>스냅샷 ID<input id="snapshotIdInput" type="text" placeholder="snapshot_20241201_120000" /></label>
+              <button id="restoreFromSnapshot">스냅샷으로 복원</button>
+            </div>
+
+            <div class="row" style="margin-top:14px">
+              <h4 class="muted" style="margin:0">관리자 비밀번호 변경</h4>
+            </div>
+            <div class="row">
+              <label>현재 비밀번호<input id="adminOldPass" type="password" /></label>
+              <label>새 비밀번호<input id="adminNewPass" type="password" /></label>
+              <button id="adminChangePw">변경</button>
+            </div>
+            <div id="adminMsg" class="muted small" aria-live="polite"></div>
+
+            <div class="row" style="margin-top:14px">
+              <h4 class="muted" style="margin:0">프리셋 관리</h4>
+            </div>
+            <div class="row preset-admin-row">
+              <label>프리셋 선택<select id="adminPresetSelect"></select></label>
+              <button id="adminPresetApply">프리셋 적용</button>
+              <button id="adminPresetLoad">불러오기</button>
+              <button id="adminPresetDelete">삭제</button>
+            </div>
+            <div class="row preset-admin-row">
+              <label>프리셋 이름<input id="adminPresetName" type="text" placeholder="예: 기본 세팅" /></label>
+              <button id="adminPresetSave">현재 설정을 프리셋으로 저장</button>
+            </div>
+            <div id="presetAdminMsg" class="muted small" aria-live="polite"></div>
+
+            <!-- 백업 스냅샷 관리 기능 -->
+            <div class="row" style="margin-top:14px">
+              <h4 class="muted" style="margin:0">백업 스냅샷 목록</h4>
+            </div>
+            <div class="row preset-admin-row">
+              <button id="adminBackupRefresh" type="button">목록 새로고침</button>
+              <button id="adminRestoreFromMirror" type="button">미러 복원</button>
+              <label>스냅샷<select id="adminSnapshotSelect"></select></label>
+              <button id="adminRestoreFromSnapshot" type="button">스냅샷 복원</button>
+            </div>
+            <div id="adminBackupStatus" class="muted small" aria-live="polite"></div>
+            <table class="stats" id="adminSnapshotTable" aria-label="백업 스냅샷 목록" style="margin-top:8px">
+              <thead>
+                <tr><th>스냅샷 키</th><th>생성 시각</th><th>메모</th></tr>
+              </thead>
+              <tbody id="adminSnapshotTableBody"></tbody>
+            </table>
+          </div>
+
+          <!-- 5. 재화 지급 -->
+          <div class="admin-tab-content" data-tab="rewards" style="display:none">
+            <div class="row">
+              <h3 class="muted" style="margin:0">💰 사용자 재화 지급</h3>
+              <div class="muted">모든 일반 사용자에게 포인트, 골드, 아이템을 지급합니다</div>
+            </div>
+
+            <div class="row" style="margin-top:14px">
+              <h4 class="muted" style="margin:0">전체 지급</h4>
+            </div>
+            <div class="row">
+              <button id="giveRewardsToAll">전체 사용자에게 보상 지급</button>
+              <span class="muted small">관리자를 제외한 모든 사용자에게 보상을 지급합니다</span>
+            </div>
+
+            <div class="row" style="margin-top:14px">
+              <h4 class="muted" style="margin:0">기능 플래그</h4>
+            </div>
+            <div class="row admin-flag-row">
+              <label><input id="flagAnimations" type="checkbox" /> 희귀 연출 사용</label>
+              <label><input id="flagBanners" type="checkbox" /> 배너 노출</label>
+              <label>보상 테이블<select id="flagRewardsPreset"></select></label>
+            </div>
+            <div id="adminFlagMsg" class="muted small" aria-live="polite"></div>
+
+            <!-- 개별 사용자 지급 기능 -->
+            <div class="row" style="margin-top:16px">
+              <h4 class="muted" style="margin:0">개별 사용자 지급</h4>
+            </div>
+            <div class="row preset-admin-row">
+              <label>사용자<select id="adminUserSelect"></select></label>
+              <span class="muted small" id="adminUserStats"></span>
+            </div>
+            <div class="row preset-admin-row">
+              <label>포인트<input id="adminGrantPoints" type="number" step="1" value="0" /></label>
+              <label>골드<input id="adminGrantGold" type="number" step="1" value="0" /></label>
+              <label>다이아<input id="adminGrantDiamonds" type="number" step="1" value="0" /></label>
+              <label>펫 뽑기권<input id="adminGrantPetTickets" type="number" step="1" value="0" /></label>
+              <button id="adminGrantSubmit">지급</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel gacha-main-panel show-draw" id="gachaPanel" data-section="gacha">
+          <h2>가챠 시뮬레이터</h2>
+
+          <!-- 가챠 탭 네비게이션 -->
+          <div class="gacha-tabs">
+            <button class="gacha-tab active" data-tab="draw">뽑기</button>
+            <button class="gacha-tab" data-tab="config">확률</button>
+            <button class="gacha-tab" data-tab="stats">통계</button>
+            <button class="gacha-tab" data-tab="log">결과 로그</button>
+          </div>
+
+          <!-- 뽑기 탭 (메인) -->
+          <div class="gacha-tab-content" data-tab="draw">
+            <div class="row gacha-type-row">
+              <button id="gachaModeGearDraw" class="mode-btn active" type="button">장비 뽑기</button>
+              <button id="gachaModePetDraw" class="mode-btn" type="button">펫 뽑기</button>
+              <button id="gachaModeCharacterDraw" class="mode-btn" type="button">캐릭터 뽑기</button>
+            </div>
+            <div id="gearDrawControls" class="gear-draw-controls">
+              <div class="draw-groups">
+                <section class="draw-group" aria-labelledby="singleDrawLabel">
+                  <h3 id="singleDrawLabel">⚔️ 장비 1회 뽑기</h3>
+                  <div class="gear-preview">
+                    <span class="gear-icon" title="투구">🪖</span>
+                    <span class="gear-icon" title="갑옷">🛡️</span>
+                    <span class="gear-icon" title="주무기">⚔️</span>
+                    <span class="gear-icon" title="보조무기">🗡️</span>
+                    <span class="gear-icon" title="신발">🥾</span>
+                  </div>
+                  <div class="draw-button-grid">
+                    <button id="drawBasic1" class="draw-button draw-button--base" type="button" title="기본 확률로 한 번 뽑습니다.">
+                      <span class="draw-button__title" data-preset-role="label">기본 뽑기</span>
+                      <span class="draw-button__subtitle" data-preset-role="cost">100 포인트</span>
+                      <span class="draw-button__note" data-preset-role="note">기본 확률</span>
+                    </button>
+                    <button id="drawBoost1" class="draw-button draw-button--boost" type="button" title="S+ 이상 확률이 10%p 상승합니다.">
+                      <span class="draw-button__title" data-preset-role="label">확률업 뽑기</span>
+                      <span class="draw-button__subtitle" data-preset-role="cost">500 포인트</span>
+                      <span class="draw-button__note" data-preset-role="note">S+↑ 10%p</span>
+                    </button>
+                    <button id="drawPremium1" class="draw-button draw-button--premium" type="button" title="S+ 이상 확률이 25%p 상승합니다.">
+                      <span class="draw-button__title" data-preset-role="label">프리미엄 뽑기</span>
+                      <span class="draw-button__subtitle" data-preset-role="cost">2,000 포인트</span>
+                      <span class="draw-button__note" data-preset-role="note">S+↑ 25%p</span>
+                    </button>
+                  </div>
+                </section>
+                <section class="draw-group" aria-labelledby="multiDrawLabel">
+                  <h3 id="multiDrawLabel">🎊 장비 10회 뽑기</h3>
+                  <div class="draw-button-grid">
+                    <button id="drawBasic10" class="draw-button draw-button--base" type="button" title="10% 할인된 가격으로 10회 뽑습니다.">
+                      <span class="draw-button__title" data-preset-role="label">기본 10회</span>
+                      <span class="draw-button__subtitle" data-preset-role="cost">900 포인트</span>
+                      <span class="draw-button__note" data-preset-role="note">10% 할인</span>
+                    </button>
+                    <button id="drawBoost10" class="draw-button draw-button--boost" type="button" title="10회 모두 S+ 이상 확률이 10%p 상승합니다.">
+                      <span class="draw-button__title" data-preset-role="label">확률업 10회</span>
+                      <span class="draw-button__subtitle" data-preset-role="cost">4,500 포인트</span>
+                      <span class="draw-button__note" data-preset-role="note">S+↑ 10%p</span>
+                    </button>
+                    <button id="drawPremium10" class="draw-button draw-button--premium" type="button" title="10회 모두 S+ 이상 확률이 25%p 상승합니다.">
+                      <span class="draw-button__title" data-preset-role="label">프리미엄 10회</span>
+                      <span class="draw-button__subtitle" data-preset-role="cost">18,000 포인트</span>
+                      <span class="draw-button__note" data-preset-role="note">S+↑ 25%p</span>
+                    </button>
+                  </div>
+                </section>
+              </div>
+            </div>
+            <div id="petDrawControls" class="gear-draw-controls pet-draw-controls" style="display:none">
+              <div class="draw-groups">
+                <section class="draw-group" aria-labelledby="petDrawLabel">
+                  <h3 id="petDrawLabel">🐾 펫 뽑기</h3>
+                  <div class="pet-ticket-info">
+                    <span class="pet-ticket-badge">보유 뽑기권: <strong id="petTicketInline">0</strong>개</span>
+                  </div>
+                  <div class="draw-button-grid">
+                    <button id="drawPet1" class="draw-button draw-button--pet" type="button" title="펫 뽑기권 1개를 사용하여 랜덤한 펫 1마리를 획득합니다.">
+                      <span class="draw-button__title">🎁 펫 1회 뽑기</span>
+                      <span class="draw-button__subtitle">뽑기권 1개 소모</span>
+                      <span class="draw-button__note">랜덤 펫 획득</span>
+                    </button>
+                    <button id="drawPet10" class="draw-button draw-button--pet draw-button--multi" type="button" title="펫 뽑기권 10개를 사용하여 랜덤한 펫 10마리를 획득합니다.">
+                      <span class="draw-button__title">🎊 펫 10회 뽑기</span>
+                      <span class="draw-button__subtitle">뽑기권 10개 소모</span>
+                      <span class="draw-button__note">랜덤 펫 10마리</span>
+                    </button>
+                  </div>
+                </section>
+              </div>
+            </div>
+            <div id="characterDrawControls" class="gear-draw-controls character-draw-controls" style="display:none">
+              <div class="draw-groups">
+                <section class="draw-group" aria-labelledby="characterSingleLabel">
+                  <h3 id="characterSingleLabel">👑 캐릭터 1회 뽑기</h3>
+                  <div class="character-preview">
+                    <span class="character-class" title="전사">⚔️</span>
+                    <span class="character-class" title="마법사">🔮</span>
+                    <span class="character-class" title="궁수">🏹</span>
+                    <span class="character-class" title="도적">🗡️</span>
+                    <span class="character-class" title="여신">✨</span>
+                  </div>
+                  <div class="draw-button-grid">
+                    <button id="drawCharBasic1" class="draw-button draw-button--base" type="button" title="기본 확률로 캐릭터 한 명을 뽑습니다.">
+                      <span class="draw-button__title" data-preset-role="label">기본 캐릭터 뽑기</span>
+                      <span class="draw-button__subtitle" data-preset-role="cost">10,000 포인트</span>
+                      <span class="draw-button__note" data-preset-role="note">기본 확률</span>
+                    </button>
+                    <button id="drawCharBoost1" class="draw-button draw-button--boost" type="button" title="S+ 이상 캐릭터 확률이 10%p 상승합니다.">
+                      <span class="draw-button__title" data-preset-role="label">확률업 캐릭터 뽑기</span>
+                      <span class="draw-button__subtitle" data-preset-role="cost">50,000 포인트</span>
+                      <span class="draw-button__note" data-preset-role="note">S+↑ 10%p</span>
+                    </button>
+                    <button id="drawCharPremium1" class="draw-button draw-button--premium" type="button" title="S+ 이상 캐릭터 확률이 25%p 상승합니다.">
+                      <span class="draw-button__title" data-preset-role="label">프리미엄 캐릭터 뽑기</span>
+                      <span class="draw-button__subtitle" data-preset-role="cost">200,000 포인트</span>
+                      <span class="draw-button__note" data-preset-role="note">S+↑ 25%p</span>
+                    </button>
+                  </div>
+                </section>
+                <section class="draw-group" aria-labelledby="characterMultiLabel">
+                  <h3 id="characterMultiLabel">🌟 캐릭터 10회 뽑기</h3>
+                  <div class="draw-button-grid">
+                    <button id="drawCharBasic10" class="draw-button draw-button--base" type="button" title="10% 할인된 가격으로 캐릭터 10회를 뽑습니다.">
+                      <span class="draw-button__title" data-preset-role="label">기본 캐릭터 10회</span>
+                      <span class="draw-button__subtitle" data-preset-role="cost">90,000 포인트</span>
+                      <span class="draw-button__note" data-preset-role="note">10% 할인</span>
+                    </button>
+                    <button id="drawCharBoost10" class="draw-button draw-button--boost" type="button" title="10회 모두 S+ 이상 캐릭터 확률이 10%p 상승합니다.">
+                      <span class="draw-button__title" data-preset-role="label">확률업 캐릭터 10회</span>
+                      <span class="draw-button__subtitle" data-preset-role="cost">450,000 포인트</span>
+                      <span class="draw-button__note" data-preset-role="note">S+↑ 10%p</span>
+                    </button>
+                    <button id="drawCharPremium10" class="draw-button draw-button--premium" type="button" title="10회 모두 S+ 이상 캐릭터 확률이 25%p 상승합니다.">
+                      <span class="draw-button__title" data-preset-role="label">프리미엄 캐릭터 10회</span>
+                      <span class="draw-button__subtitle" data-preset-role="cost">1,800,000 포인트</span>
+                      <span class="draw-button__note" data-preset-role="note">S+↑ 25%p</span>
+                    </button>
+                  </div>
+                </section>
+              </div>
+            </div>
+            <div class="draw-controls-secondary">
+              <label class="draw-speed" for="speed">애니메이션 속도
+                <input id="speed" type="range" min="0" max="60" value="10" />
+              </label>
+              <button id="cancel" type="button" disabled>중단</button>
+            </div>
+            <div class="progress" aria-label="진행률"><div id="bar"></div></div>
+            <div id="drawMsg" class="draw-msg muted small" aria-live="polite"></div>
+            <div id="drawResults" class="draw-results" style="display:none">
+              <h3>최근 뽑기 결과</h3>
+              <div class="draw-result-grid"></div>
+            </div>
+          </div>
+
+          <!-- 확률 탭 (기존 설정) -->
+          <div class="gacha-tab-content" data-tab="config" style="display:none">
+            <div class="row preset-user-row">
+              <label>관리자 프리셋<select id="globalPresetSelect"></select></label>
+              <button id="applyGlobalPreset">적용</button>
+              <label>나의 프리셋<select id="personalPresetSelect"></select></label>
+              <button id="applyPersonalPreset">적용</button>
+              <label>이름<input id="personalPresetName" type="text" placeholder="나의 프리셋" /></label>
+              <button id="savePersonalPreset">현재 설정 저장 (-1 다이아)</button>
+              <button id="toggleUserEdit">설정 편집 모드</button>
+            </div>
+            <div id="presetMsg" class="muted small" aria-live="polite"></div>
+
+            <!-- 확률 정보 섹션 -->
+            <div class="probability-info-section" style="margin-top:18px">
+              <div class="row">
+                <h4 class="muted" style="margin:0">🎲 뽑기 확률 정보</h4>
+                <div class="muted small">프리셋 설정에 따른 실제 뽑기 확률입니다.</div>
+              </div>
+
+              <!-- 확률 표시 모드 선택 -->
+              <div class="row gacha-type-row" style="margin-top:12px">
+                <button id="probDisplayModeGear" class="mode-btn active" type="button">장비 확률</button>
+                <button id="probDisplayModeCharacter" class="mode-btn" type="button">캐릭터 확률</button>
+              </div>
+
+              <!-- 장비 확률 테이블 -->
+              <div id="gearProbabilityWrap">
+                <div class="probability-table-container">
+                  <h5 class="muted" style="margin:8px 0">장비 뽑기 확률표</h5>
+                  <table class="probability-table" id="gearProbabilityTable" aria-label="장비 뽑기 확률표">
+                    <thead>
+                      <tr>
+                        <th>등급</th>
+                        <th class="prob-basic">기본 뽑기<br><span class="small-cost">(100/900pt)</span></th>
+                        <th class="prob-boost">확률업 뽑기<br><span class="small-cost">(500/4,500pt)</span></th>
+                        <th class="prob-premium">프리미엄 뽑기<br><span class="small-cost">(2,000/18,000pt)</span></th>
+                      </tr>
+                    </thead>
+                    <tbody id="gearProbabilityBody"></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- 캐릭터 확률 테이블 -->
+              <div id="characterProbabilityWrap" style="display:none">
+                <div class="probability-table-container">
+                  <h5 class="muted" style="margin:8px 0">캐릭터 뽑기 확률표</h5>
+                  <table class="probability-table" id="characterProbabilityTable" aria-label="캐릭터 뽑기 확률표">
+                    <thead>
+                      <tr>
+                        <th>등급</th>
+                        <th class="prob-basic">기본 뽑기<br><span class="small-cost">(10,000/90,000pt)</span></th>
+                        <th class="prob-boost">확률업 뽑기<br><span class="small-cost">(50,000/450,000pt)</span></th>
+                        <th class="prob-premium">프리미엄 뽑기<br><span class="small-cost">(200,000/1,800,000pt)</span></th>
+                      </tr>
+                    </thead>
+                    <tbody id="characterProbabilityBody"></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- 업데이트 상태 -->
+              <div id="probabilityUpdateStatus" class="probability-update-notice" style="display:none;margin-top:12px">
+                ✨ 확률 정보가 업데이트되었습니다
+              </div>
+            </div>
+          </div>
+
+          <!-- 통계 탭 -->
+          <div class="gacha-tab-content" data-tab="stats" style="display:none">
+            <details id="statsDetails" class="stats-fold">
+              <summary>상세 통계 보기</summary>
+            <div class="row">
+              <label>보기<select id="scope"><option value="session">세션</option><option value="global">전체</option></select></label>
+              <label>타입<select id="statsMode"><option value="gear">장비</option><option value="pet">펫</option><option value="character">캐릭터</option></select></label>
+              <div class="muted">표본 수: <span id="nDraws">0</span></div>
+              <div class="muted">카이제곱 p-value: <span id="pval">-</span></div>
+              <span class="sep"></span>
+              <button id="resetSession">세션 초기화</button>
+              <button id="resetGlobal">전체 초기화</button>
+            </div>
+            <div id="gearStatsWrap">
+              <table class="stats" id="statsTable" aria-label="등급별 통계 테이블">
+                <thead>
+                  <tr><th>등급</th><th>관측</th><th>비율</th><th>기대</th><th>Δ</th><th>상대오차</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+              <div class="barwrap" style="margin-top:8px"><canvas id="chart" width="900" height="220"></canvas></div>
+            </div>
+            <div id="petStatsWrap" style="display:none">
+              <table class="stats" id="petStatsTable" aria-label="펫 뽑기 확률 테이블">
+                <thead><tr><th>펫</th><th>확률</th><th>보유 수량</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <div id="characterStatsWrap" style="display:none">
+              <table class="stats" id="characterStatsTable" aria-label="캐릭터 뽑기 통계">
+                <thead><tr><th>티어</th><th>비율</th><th>기대</th><th>관측</th><th>델타</th><th>상대 오차</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            </details>
+          </div>
+
+          <!-- 결과 로그 탭 -->
+          <div class="gacha-tab-content" data-tab="log" style="display:none">
+            <div class="row">
+              <button id="exportCsv">CSV 내보내기</button>
+              <span class="muted small">행: draw_id, tier, part, stat, run_id, timestamp, config_hash</span>
+            </div>
+            <div class="log" id="log"></div>
+          </div>
+        </section>
+
+        <section class="panel" id="equipment" data-section="equipment">
+          <h2>장비창</h2>
+          <div class="row">
+            <div class="muted">장착 5부위 + 예비 2개(자동 정리)</div>
+            <span class="sep"></span>
+            <div class="muted">총 보유: <b id="invCount">0</b> / 7</div>
+          </div>
+          <div id="equipGrid" class="equipgrid" aria-label="장착 부위"></div>
+          <div class="row"><div class="muted">예비</div></div>
+          <div id="spareList"></div>
+          <div class="row"><div class="muted">캐릭터</div></div>
+          <div id="characterList" class="pet-list character-list"></div>
+          <div id="characterDetailHint" class="character-detail-hint muted small">
+            캐릭터 카드를 눌러 상세 정보를 확인하세요.
+          </div>
+          <div class="row"><div class="muted">펫 보유 현황</div></div>
+          <div id="petList" class="pet-list"></div>
+        </section>
+
+        <section class="panel" data-section="equipment">
+          <h2>대장간</h2>
+          <div class="row">
+            <label>강화 대상<select id="forgeTarget"></select></label>
+            <span class="muted">현재 Lv.<b id="forgeLv">0</b></span>
+            <span class="muted">배율 <b id="forgeMul">1.00×</b></span>
+            <span class="muted">단계 배율 <b id="forgeStageMul">1.00×</b></span>
+            <span class="muted">다음 누적 배율 <b id="forgeNextMul">-</b></span>
+            <span class="muted">다음 성공률 <b id="forgeP">-</b></span>
+            <span class="muted">강화 후 미리보기 <b id="forgePreview">-</b></span>
+            <button id="forgeOnce">+1 강화</button>
+            <button id="forgeAuto">자동 강화</button>
+          </div>
+          <div class="row">
+            <label><input id="forgeProtectUse" type="checkbox" /> 보호권 사용</label>
+            <span class="muted">보호권: <b id="protectCount">0</b></span>
+            <span class="muted">강화권: <b id="enhanceCount">0</b></span>
+            <span class="muted">필요 강화권 <b id="forgeCostEnh">0</b></span>
+            <span class="muted">필요 보호권 <b id="forgeCostProtect">0</b></span>
+            <span class="muted">기대 골드 소모 <b id="forgeCostGold">0</b> G</span>
+          </div>
+          <div id="forgeEffect" class="forge-effect" aria-hidden="true"></div>
+          <div id="forgeMsg" class="forge-msg muted" aria-live="polite"></div>
+          <details id="forgeEdit">
+            <summary class="muted">강화 수치/확률 편집</summary>
+            <div class="row">
+              <button id="forgeReset">초기값 복원</button>
+            </div>
+            <table class="forge-table" aria-label="강화 설정">
+              <thead><tr><th>Lv</th><th>배율</th><th>성공률(0~1)</th></tr></thead>
+              <tbody id="forgeTableBody"></tbody>
+            </table>
+          </details>
+        </section>
+
+        <section class="panel" id="battleRedirectPanel" data-section="gacha">
+          <h2>전투</h2>
+          <p class="muted small">새로운 전투 시스템은 전용 페이지에서 즐길 수 있어요.</p>
+          <button id="goBattle" class="primary">전투 페이지 열기</button>
+        </section>
+
+        <section class="panel" id="shop" data-section="shop">
+          <h2>상점</h2>
+          <div class="row">
+            <div class="muted small">골드를 소비해 아이템을 구매하세요.</div>
+          </div>
+          <table class="stats" aria-label="상점 목록" id="shopTable">
+            <thead><tr><th>아이템</th><th>가격</th><th>보유</th><th>구매</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>가속 물약</td>
+                <td><span id="pricePotion">-</span> G</td>
+                <td><span id="invPotion">0</span></td>
+                <td>
+                  <div class="shop-btns">
+                    <button class="shop-buy" data-item="potion" data-count="1">1개</button>
+                    <button class="shop-buy" data-item="potion" data-count="5">5개</button>
+                    <button class="shop-buy" data-item="potion" data-count="10">10개</button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>초 가속 물약</td>
+                <td><span id="priceHyper">-</span> G</td>
+                <td><span id="invHyper">0</span></td>
+                <td>
+                  <div class="shop-btns">
+                    <button class="shop-buy" data-item="hyperPotion" data-count="1">1개</button>
+                    <button class="shop-buy" data-item="hyperPotion" data-count="5">5개</button>
+                    <button class="shop-buy" data-item="hyperPotion" data-count="10">10개</button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>보호권</td>
+                <td><span id="priceProtect">-</span> G</td>
+                <td><span id="invProtect">0</span></td>
+                <td>
+                  <div class="shop-btns">
+                    <button class="shop-buy" data-item="protect" data-count="1">1개</button>
+                    <button class="shop-buy" data-item="protect" data-count="5">5개</button>
+                    <button class="shop-buy" data-item="protect" data-count="10">10개</button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>강화권</td>
+                <td><span id="priceEnhance">-</span> G</td>
+                <td><span id="invEnhance">0</span></td>
+                <td>
+                  <div class="shop-btns">
+                    <button class="shop-buy" data-item="enhance" data-count="1">1개</button>
+                    <button class="shop-buy" data-item="enhance" data-count="5">5개</button>
+                    <button class="shop-buy" data-item="enhance" data-count="10">10개</button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>전투부활권</td>
+                <td><span id="priceBattleRes">-</span> G</td>
+                <td><span id="invBattleRes">0</span></td>
+                <td>
+                  <div class="shop-btns">
+                    <button class="shop-buy" data-item="battleRes" data-count="1">1개</button>
+                    <button class="shop-buy" data-item="battleRes" data-count="5">5개</button>
+                    <button class="shop-buy" data-item="battleRes" data-count="10">10개</button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>성수</td>
+                <td><span id="priceHolyWater">-</span> G</td>
+                <td><span id="invHolyWater">0</span></td>
+                <td>
+                  <div class="shop-btns">
+                    <button class="shop-buy" data-item="holyWater" data-count="1">1개</button>
+                    <button class="shop-buy" data-item="holyWater" data-count="2">2개</button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>초보자 패키지<br /><span class="muted small">B 등급 장비 5종 세트</span></td>
+                <td><span id="priceStarter">-</span> G</td>
+                <td>-</td>
+                <td>
+                  <div class="shop-btns">
+                    <button class="shop-buy" data-item="starterPack" data-count="1">구매</button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="diamond-shop" id="diamondShop">
+            <h3 class="diamond-shop__title">다이아 상점</h3>
+            <p class="diamond-shop__hint muted small">다이아를 사용해 포인트와 골드를 충전하세요.</p>
+            <div class="diamond-shop__grid" id="diamondShopGrid"></div>
+          </div>
+          <div id="shopMsg" class="shop-msg" aria-live="polite"></div>
+        </section>
+
+      </div>
+    </div>
+
+    <div id="questOverlay" class="quest-overlay" hidden>
+      <div id="questPanel" class="quest-panel" role="dialog" aria-modal="true" aria-labelledby="questTitle">
+        <div class="quest-header">
+          <h3 id="questTitle">퀘스트</h3>
+          <button id="questClose" type="button" class="quest-close" aria-label="닫기">×</button>
+        </div>
+        <p class="quest-subtitle">조건을 달성하고 다이아 보상을 받아보세요.</p>
+        <div id="questList" class="quest-list" role="list"></div>
+        <div id="questEmpty" class="quest-empty" hidden>모든 퀘스트를 완료했습니다! 새로운 미션을 기다려주세요.</div>
+      </div>
+    </div>
+
+    <div id="questToast" class="quest-toast" aria-live="polite"></div>
+
+    <div id="userOptionsModal" class="user-options-modal" hidden>
+      <div class="user-options-panel" role="dialog" aria-modal="true" aria-labelledby="userOptionsTitle">
+        <h3 id="userOptionsTitle">연출 설정</h3>
+        <div class="user-options-options">
+          <label><input id="userOptionsCharacterGif" type="checkbox" /> 캐릭터 필살기 GIF</label>
+          <label><input id="userOptionsPetGif" type="checkbox" /> 펫 필살기 GIF</label>
+        </div>
+        <div class="user-options-actions">
+          <button id="userOptionsSave" type="button" class="primary">저장</button>
+          <button id="userOptionsClose" type="button">닫기</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="rareAnimationOverlay" class="rare-animation-overlay" hidden>
+      <div class="rare-animation-content">
+        <img id="rareAnimationImage" alt="희귀 장비 애니메이션" />
+        <div id="rareAnimationMessage" class="rare-animation-message"></div>
+        <div id="rareAnimationTier" class="rare-animation-tier"></div>
+        <button id="rareAnimationSkip" type="button" class="rare-animation-skip">건너뛰기</button>
+      </div>
+    </div>
+
+    <div id="legendaryOverlay" class="legendary-overlay" hidden>
+      <div id="gearLegendaryModal" class="legendary-modal" role="dialog" aria-modal="true" aria-labelledby="gearLegendaryTitle">
+        <h3 id="gearLegendaryTitle">전설 장비 획득!</h3>
+        <div class="gear-compare">
+          <div class="gear-card">
+            <div class="label">새 장비</div>
+            <div class="tier" id="gearNewTier">-</div>
+            <div class="part" id="gearNewPart">-</div>
+            <div class="stat-line">기본 수치: <span id="gearNewBase">-</span></div>
+            <div class="stat-line">강화 포함: <span id="gearNewEffective">-</span></div>
+          </div>
+          <div class="gear-card">
+            <div class="label">현재 장비</div>
+            <div class="tier" id="gearCurrentTier">없음</div>
+            <div class="part" id="gearCurrentPart">-</div>
+            <div class="stat-line">기본 수치: <span id="gearCurrentBase">-</span></div>
+            <div class="stat-line">강화 포함: <span id="gearCurrentEffective">-</span></div>
+          </div>
+        </div>
+        <div class="delta-line" id="gearComparisonDelta"></div>
+        <div class="modal-actions">
+          <button id="gearEquipBtn" class="primary" type="button">즉시 착용</button>
+          <button id="gearSpareBtn" type="button">예비 보관</button>
+          <button id="gearDiscardBtn" class="danger" type="button">버리기</button>
+        </div>
+      </div>
+      <div id="characterLegendaryModal" class="legendary-modal" role="dialog" aria-modal="true" aria-labelledby="characterLegendaryTitle">
+        <h3 id="characterLegendaryTitle">전설 캐릭터 획득!</h3>
+        <div class="character-compare">
+          <div class="char-card">
+            <div class="label">새 캐릭터</div>
+            <div class="char-header">
+              <img id="characterNewImage" alt="새 캐릭터" />
+              <div>
+                <div id="characterNewName" class="char-name">-</div>
+                <div id="characterNewTier" class="char-tier">-</div>
+                <div id="characterNewClass" class="char-class">-</div>
+                <div id="characterNewCount" class="char-count">보유: 0</div>
+              </div>
+            </div>
+            <div class="char-stats" id="characterNewStats"></div>
+          </div>
+          <div class="char-card">
+            <div class="label">현재 대표 캐릭터</div>
+            <div class="char-header">
+              <img id="characterCurrentImage" alt="현재 캐릭터" />
+              <div>
+                <div id="characterCurrentName" class="char-name">-</div>
+                <div id="characterCurrentTier" class="char-tier">-</div>
+                <div id="characterCurrentClass" class="char-class">-</div>
+                <div id="characterCurrentCount" class="char-count">보유: 0</div>
+              </div>
+            </div>
+            <div class="char-stats" id="characterCurrentStats"></div>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button id="characterLegendaryClose" class="primary" type="button">확인</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="characterDetailModal" class="character-modal" hidden>
+      <div class="character-modal__backdrop"></div>
+      <div class="character-modal__content" role="dialog" aria-modal="true" aria-labelledby="characterDetailTitle">
+        <button id="characterDetailClose" type="button" class="character-modal__close" aria-label="닫기">×</button>
+        <div id="characterDetailBody" class="character-modal__body"></div>
+      </div>
+    </div>
+
+    <!-- 슬롯머신 오버레이 -->
+    <div id="slotMachineOverlay" class="slot-overlay" hidden>
+      <div class="slot-container">
+        <div class="slot-header">
+          <h3 id="slotTitle">🎰 가챠 슬롯머신</h3>
+          <button id="slotSkip" type="button" class="slot-skip">건너뛰기 (ESC)</button>
+        </div>
+
+        <!-- 1회 뽑기용 단일 슬롯 -->
+        <div id="singleSlot" class="single-slot" style="display:none">
+          <div class="slot-machine">
+            <div class="slot-reel">
+              <div class="slot-tier">SSS+</div>
+              <div class="slot-tier">SS+</div>
+              <div class="slot-tier">S+</div>
+              <div class="slot-tier">S</div>
+              <div class="slot-tier">A</div>
+              <div class="slot-tier">B</div>
+              <div class="slot-tier">C</div>
+              <div class="slot-tier">D</div>
+              <!-- 무한 루프를 위한 반복 -->
+              <div class="slot-tier">SSS+</div>
+              <div class="slot-tier">SS+</div>
+              <div class="slot-tier">S+</div>
+              <div class="slot-tier">S</div>
+              <div class="slot-tier">A</div>
+              <div class="slot-tier">B</div>
+              <div class="slot-tier">C</div>
+              <div class="slot-tier">D</div>
+            </div>
+            <div class="slot-selector"></div>
+          </div>
+        </div>
+
+        <!-- 10회 뽑기용 3x3 + 보너스 슬롯 -->
+        <div id="multiSlot" class="multi-slot" style="display:none">
+          <div class="slot-grid">
+            <div class="grid-slot" data-index="0">
+              <div class="slot-reel">
+                <div class="slot-tier">SSS+</div>
+                <div class="slot-tier">SS+</div>
+                <div class="slot-tier">S+</div>
+                <div class="slot-tier">S</div>
+                <div class="slot-tier">A</div>
+                <div class="slot-tier">B</div>
+                <div class="slot-tier">C</div>
+                <div class="slot-tier">D</div>
+              </div>
+              <div class="slot-selector"></div>
+            </div>
+            <div class="grid-slot" data-index="1">
+              <div class="slot-reel">
+                <div class="slot-tier">SSS+</div>
+                <div class="slot-tier">SS+</div>
+                <div class="slot-tier">S+</div>
+                <div class="slot-tier">S</div>
+                <div class="slot-tier">A</div>
+                <div class="slot-tier">B</div>
+                <div class="slot-tier">C</div>
+                <div class="slot-tier">D</div>
+              </div>
+              <div class="slot-selector"></div>
+            </div>
+            <div class="grid-slot" data-index="2">
+              <div class="slot-reel">
+                <div class="slot-tier">SSS+</div>
+                <div class="slot-tier">SS+</div>
+                <div class="slot-tier">S+</div>
+                <div class="slot-tier">S</div>
+                <div class="slot-tier">A</div>
+                <div class="slot-tier">B</div>
+                <div class="slot-tier">C</div>
+                <div class="slot-tier">D</div>
+              </div>
+              <div class="slot-selector"></div>
+            </div>
+            <div class="grid-slot" data-index="3">
+              <div class="slot-reel">
+                <div class="slot-tier">SSS+</div>
+                <div class="slot-tier">SS+</div>
+                <div class="slot-tier">S+</div>
+                <div class="slot-tier">S</div>
+                <div class="slot-tier">A</div>
+                <div class="slot-tier">B</div>
+                <div class="slot-tier">C</div>
+                <div class="slot-tier">D</div>
+              </div>
+              <div class="slot-selector"></div>
+            </div>
+            <div class="grid-slot" data-index="4">
+              <div class="slot-reel">
+                <div class="slot-tier">SSS+</div>
+                <div class="slot-tier">SS+</div>
+                <div class="slot-tier">S+</div>
+                <div class="slot-tier">S</div>
+                <div class="slot-tier">A</div>
+                <div class="slot-tier">B</div>
+                <div class="slot-tier">C</div>
+                <div class="slot-tier">D</div>
+              </div>
+              <div class="slot-selector"></div>
+            </div>
+            <div class="grid-slot" data-index="5">
+              <div class="slot-reel">
+                <div class="slot-tier">SSS+</div>
+                <div class="slot-tier">SS+</div>
+                <div class="slot-tier">S+</div>
+                <div class="slot-tier">S</div>
+                <div class="slot-tier">A</div>
+                <div class="slot-tier">B</div>
+                <div class="slot-tier">C</div>
+                <div class="slot-tier">D</div>
+              </div>
+              <div class="slot-selector"></div>
+            </div>
+            <div class="grid-slot" data-index="6">
+              <div class="slot-reel">
+                <div class="slot-tier">SSS+</div>
+                <div class="slot-tier">SS+</div>
+                <div class="slot-tier">S+</div>
+                <div class="slot-tier">S</div>
+                <div class="slot-tier">A</div>
+                <div class="slot-tier">B</div>
+                <div class="slot-tier">C</div>
+                <div class="slot-tier">D</div>
+              </div>
+              <div class="slot-selector"></div>
+            </div>
+            <div class="grid-slot" data-index="7">
+              <div class="slot-reel">
+                <div class="slot-tier">SSS+</div>
+                <div class="slot-tier">SS+</div>
+                <div class="slot-tier">S+</div>
+                <div class="slot-tier">S</div>
+                <div class="slot-tier">A</div>
+                <div class="slot-tier">B</div>
+                <div class="slot-tier">C</div>
+                <div class="slot-tier">D</div>
+              </div>
+              <div class="slot-selector"></div>
+            </div>
+            <div class="grid-slot" data-index="8">
+              <div class="slot-reel">
+                <div class="slot-tier">SSS+</div>
+                <div class="slot-tier">SS+</div>
+                <div class="slot-tier">S+</div>
+                <div class="slot-tier">S</div>
+                <div class="slot-tier">A</div>
+                <div class="slot-tier">B</div>
+                <div class="slot-tier">C</div>
+                <div class="slot-tier">D</div>
+              </div>
+              <div class="slot-selector"></div>
+            </div>
+          </div>
+
+          <div class="bonus-slot-wrapper">
+            <div class="bonus-label">✨ BONUS SLOT ✨</div>
+            <div class="bonus-slot">
+              <div class="slot-reel">
+                <div class="slot-tier">SSS+</div>
+                <div class="slot-tier">SS+</div>
+                <div class="slot-tier">S+</div>
+                <div class="slot-tier">S</div>
+                <div class="slot-tier">A</div>
+                <div class="slot-tier">B</div>
+                <div class="slot-tier">C</div>
+                <div class="slot-tier">D</div>
+              </div>
+              <div class="slot-selector"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="slot-status">
+          <div id="slotMessage" class="slot-message">준비...</div>
+          <div id="slotProgress" class="slot-progress">
+            <div class="slot-progress-bar"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="app.js"></script>
+    <script type="module" src="navigation.js"></script>
+    <script type="module" src="mailbox.js"></script>
+  </body>
+</html>

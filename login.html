@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>로그인 · 가챠 시뮬레이터</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="icon" type="image/png" href="assets/favicon.png" />
+  </head>
+  <body class="auth-body">
+    <div class="auth-card">
+      <section class="panel">
+        <div class="auth-header">
+          <h1>로그인</h1>
+          <p class="muted small">가챠 시뮬레이터에 다시 오신 것을 환영합니다.</p>
+        </div>
+        <form id="loginForm" class="column" style="display:flex;flex-direction:column;gap:10px;">
+          <label>아이디<input id="loginUsername" type="text" autocomplete="username" required /></label>
+          <label>비밀번호<input id="loginPassword" type="password" autocomplete="current-password" required /></label>
+          <button type="submit" class="primary">로그인</button>
+        </form>
+        <div class="auth-actions">
+          <span class="muted small">계정이 없으신가요?</span>
+          <a href="signup.html">회원가입 하기</a>
+        </div>
+        <div id="authMessage" class="auth-message" aria-live="polite"></div>
+      </section>
+    </div>
+    <script type="module" src="auth.js"></script>
+  </body>
+</html>
