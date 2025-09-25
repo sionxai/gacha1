@@ -38,6 +38,8 @@
         margin: 0;
         font-size: 20px;
       }
+      .title-section { display: flex; flex-direction: column; align-items: flex-start; }
+      .version { font-size: 10px; font-weight: 400; color: var(--muted); margin-top: 2px; }
       .top-bar .muted { color: var(--muted); }
       .top-bar .sep { flex: 1 1 auto; }
       .effect-toggle-group {
@@ -568,7 +570,10 @@
   <body data-page="battle">
     <div class="container">
       <div class="top-bar">
-        <h1>확장 전투 시스템</h1>
+        <div class="title-section">
+          <h1>확장 전투 시스템</h1>
+          <div class="version">v0.7b</div>
+        </div>
         <div class="meta">
           <span class="muted">사용자: <b id="whoamiBattle">-</b></span>
           <span class="muted">포인트: <b id="pointsBattle">-</b></span>

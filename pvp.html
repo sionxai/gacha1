@@ -32,6 +32,8 @@
         margin-bottom: 20px;
       }
       .top-bar h1 { margin: 0; font-size: 20px; }
+      .title-section { display: flex; flex-direction: column; align-items: flex-start; }
+      .version { font-size: 10px; font-weight: 400; color: var(--muted); margin-top: 2px; }
       .top-bar .meta { display:flex; gap:12px; flex-wrap:wrap; font-size:13px; color:var(--muted); }
       .top-bar .meta b { color: var(--text); }
       .top-bar .sep { flex:1 1 auto; }
@@ -146,7 +148,10 @@
   <body data-page="pvp">
     <div class="container">
       <div class="top-bar">
-        <h1>PVP 아레나</h1>
+        <div class="title-section">
+          <h1>PVP 아레나</h1>
+          <div class="version">v0.7b</div>
+        </div>
         <div class="meta">
           <span>플레이어: <b id="whoamiPvp">-</b></span>
           <span>전적: <b id="pvpRecord">0승 0패</b></span>
