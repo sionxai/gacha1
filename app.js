@@ -7784,7 +7784,7 @@ ${parts.join(', ')}`;
             }, 600);
           };
 
-          const finishSlot = () => {
+          const finishSlot = async () => {
             console.log('finishSlot 호출됨');
             if (animationInterval) {
               clearInterval(animationInterval);
@@ -7792,7 +7792,7 @@ ${parts.join(', ')}`;
             }
 
             // 슬롯 멈춤
-            stopAtTargetTier(slotReel, targetIndex);
+            await stopAtTargetTier(slotReel, targetIndex);
 
             // 결과 표시
             setTimeout(() => {
@@ -7917,56 +7917,69 @@ ${parts.join(', ')}`;
       }
 
       function stopAtTargetTier(slotReel, targetIndex) {
-        console.log('stopAtTargetTier 호출:', { targetIndex, element: slotReel });
+        return new Promise((resolve) => {
+          console.log('stopAtTargetTier 호출:', { targetIndex, element: slotReel });
 
-        if (!slotReel) {
-          console.error('slotReel이 null입니다!');
-          return;
-        }
+          if (!slotReel) {
+            console.error('slotReel이 null입니다!');
+            resolve({ status: 'skipped', reason: 'missing-reel' });
+            return;
+          }
 
-        // 모든 CSS 애니메이션 강제 중단
-        slotReel.style.animation = 'none !important';
-        slotReel.style.animationPlayState = 'paused';
-        slotReel.style.animationDelay = '0s';
-        slotReel.style.animationDuration = '0s';
-        slotReel.style.animationIterationCount = '0';
-        slotReel.style.animationFillMode = 'forwards';
+          // 모든 CSS 애니메이션 강제 중단
+          slotReel.style.animation = 'none !important';
+          slotReel.style.animationPlayState = 'paused';
+          slotReel.style.animationDelay = '0s';
+          slotReel.style.animationDuration = '0s';
+          slotReel.style.animationIterationCount = '0';
+          slotReel.style.animationFillMode = 'forwards';
 
-        // 모든 애니메이션 관련 클래스 제거
-        slotReel.classList.remove('slot-spinning', 'slot-fast', 'slot-slow');
+          // 모든 애니메이션 관련 클래스 제거
+          slotReel.classList.remove('slot-spinning', 'slot-fast', 'slot-slow');
 
-        // 즉시 리플로우 강제 실행 (여러 번)
-        slotReel.offsetHeight;
-        slotReel.getBoundingClientRect();
+          // 즉시 리플로우 강제 실행 (여러 번)
+          slotReel.offsetHeight;
+          slotReel.getBoundingClientRect();
 
-        console.log('애니메이션 중단 완료');
+          console.log('애니메이션 중단 완료');
 
-        if (targetIndex === -1 || targetIndex === undefined) {
-          console.warn('유효하지 않은 targetIndex, 첫 번째 위치로 설정');
-          targetIndex = 0;
-        }
+          let safeIndex = Number.isInteger(targetIndex) ? targetIndex : 0;
+          if (safeIndex < 0) {
+            console.warn('targetIndex가 음수입니다. 0으로 보정합니다.');
+            safeIndex = 0;
+          }
 
-        // 실시간 DOM 측정으로 정확한 위치 계산
-        const tierElements = slotReel.querySelectorAll('.slot-tier');
+          const tierElements = slotReel.querySelectorAll('.slot-tier');
+          if (!tierElements.length) {
+            console.warn('티어 요소를 찾을 수 없습니다.');
+            resolve({ status: 'skipped', reason: 'no-tier-elements' });
+            return;
+          }
 
-        if (targetIndex >= 0 && targetIndex < tierElements.length) {
-          const targetElement = tierElements[targetIndex];
-          const targetTierName = targetElement.textContent.trim();
+          if (safeIndex >= tierElements.length) {
+            console.warn('targetIndex가 범위를 벗어났습니다. 마지막 요소로 조정합니다.', {
+              requestedIndex: targetIndex,
+              clampedIndex: tierElements.length - 1,
+              length: tierElements.length
+            });
+            safeIndex = tierElements.length - 1;
+          }
 
-          // 애니메이션을 잠시 끄고 측정
+          const targetElement = tierElements[safeIndex];
+          const targetTierName = targetElement?.textContent.trim() || 'Unknown';
+
+          // 애니메이션을 잠시 끄고 측정 준비
           slotReel.style.animation = 'none';
           slotReel.style.transform = 'translateY(0%)';
 
           // DOM 업데이트 강제 실행
           slotReel.offsetHeight;
 
-          // 실제 위치 측정
           const slotMachine = slotReel.closest('.slot-machine');
           const selector = slotMachine ? slotMachine.querySelector('.slot-selector') : null;
-
           if (!slotMachine || !selector) {
             console.warn('⚠️ 슬롯머신 또는 선택자를 찾을 수 없습니다');
-            resolve();
+            resolve({ status: 'skipped', reason: 'missing-selector' });
             return;
           }
 
@@ -7974,14 +7987,13 @@ ${parts.join(', ')}`;
           const selectorRect = selector.getBoundingClientRect();
           const targetRect = targetElement.getBoundingClientRect();
 
-          // 표시자 중앙과 타겟 티어 중앙 사이의 거리 계산
           const selectorCenter = selectorRect.top + selectorRect.height / 2;
           const targetCenter = targetRect.top + targetRect.height / 2;
           const offsetPx = selectorCenter - targetCenter;
           const offsetPercent = (offsetPx / reelRect.height) * 100;
 
           console.log(`🎯 실시간 위치 계산:`, {
-            targetIndex,
+            targetIndex: safeIndex,
             targetTier: targetTierName,
             selectorCenter: Math.round(selectorCenter),
             targetCenter: Math.round(targetCenter),
@@ -7990,27 +8002,29 @@ ${parts.join(', ')}`;
             reelHeight: Math.round(reelRect.height)
           });
 
-          // 트랜지션 설정
           slotReel.style.transition = 'transform 0.5s ease-out';
 
-          // 위치 조정
           setTimeout(() => {
             slotReel.style.transform = `translateY(${offsetPercent}%)`;
             console.log(`✅ ${targetTierName} 슬롯 위치 설정 완료: ${offsetPercent}%`);
-          }, 100);
-        } else {
-          console.error(`❌ 유효하지 않은 targetIndex: ${targetIndex}`);
-        }
 
-        // 텍스트 이펙트는 트랜지션 완료 후 표시
-        setTimeout(() => {
-          const tierElements = slotReel.querySelectorAll('.slot-tier');
-          if (tierElements[targetIndex]) {
-            const tierText = tierElements[targetIndex].textContent.trim();
-            const slotMachine = slotReel.closest('.slot-machine') || slotReel.closest('#singleSlot');
-            showTierEffectOnSlot(tierText, slotMachine);
-          }
-        }, 600);
+            setTimeout(() => {
+              const updatedTierElements = slotReel.querySelectorAll('.slot-tier');
+              if (updatedTierElements[safeIndex]) {
+                const tierText = updatedTierElements[safeIndex].textContent.trim();
+                const targetSlotMachine = slotReel.closest('.slot-machine') || slotReel.closest('#singleSlot');
+                showTierEffectOnSlot(tierText, targetSlotMachine);
+              }
+            }, 600);
+
+            resolve({
+              status: 'aligned',
+              index: safeIndex,
+              tier: targetTierName,
+              offsetPercent
+            });
+          }, 100);
+        });
       }
 
       function runSingleSlotAnimation() {

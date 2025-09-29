@@ -580,6 +580,13 @@ function subscribeMailbox(user) {
 
   // Listen to multiple paths where mails might be stored
   const sanitizedUid = sanitizeKey(user.uid);
+  if (!sanitizedUid) {
+    console.error('❌ [mailbox] UID를 정제할 수 없습니다. 우편함을 비활성화합니다.', { uid: user.uid });
+    if (widgetEl) widgetEl.style.display = 'none';
+    if (listEl) listEl.innerHTML = '<div class="mailbox-empty">우편함을 불러올 수 없습니다.</div>';
+    toggleMailbox(false);
+    return;
+  }
   const mailPaths = [
     `mailbox/${sanitizedUid}`,
     `user_mail/${sanitizedUid}`,

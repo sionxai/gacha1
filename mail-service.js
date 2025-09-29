@@ -3,11 +3,11 @@ import { db, ref, set, update, push } from './firebase.js';
 export const MAIL_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000;
 
 export function sanitizeFirebaseKey(key) {
-  if (typeof key !== 'string') return 'unknown';
+  if (typeof key !== 'string') return null;
   const trimmed = key.trim();
-  if (!trimmed) return 'unknown';
-  const sanitized = trimmed.replace(/[^A-Za-z0-9_-]/g, '_');
-  return sanitized.length ? sanitized : 'unknown';
+  if (!trimmed) return null;
+  if (!/^[A-Za-z0-9_-]+$/.test(trimmed)) return null;
+  return trimmed;
 }
 
 export function sanitizeMailRewards(rewards) {
@@ -85,18 +85,17 @@ export async function enqueueMail(uid, payload = {}) {
   const now = Date.now();
 
   const safeUid = sanitizeFirebaseKey(uid);
+  if (!safeUid) {
+    const error = new Error('잘못된 UID입니다. 메일을 전송할 수 없습니다.');
+    error.code = 'invalid-uid';
+    console.error('❌ [enqueueMail] UID 검증 실패:', { uid });
+    throw error;
+  }
+
   console.log('📧 [enqueueMail] uid 검사', { uid, safeUid });
 
-  // mailbox 경로를 기본 사용, 이전 호환을 위해 user_mail은 실패 시 사용
-  let mailRef;
-  try {
-    mailRef = push(ref(db, `mailbox/${safeUid}`));
-    console.log('📧 [enqueueMail] mailbox 경로 사용');
-  } catch (pathError) {
-    console.warn('📧 [enqueueMail] mailbox 경로 실패, user_mail 경로로 대체', pathError);
-    mailRef = push(ref(db, `user_mail/${safeUid}`));
-  }
-  const entry = buildMailEntry(mailRef.key, {
+  const mailboxRef = push(ref(db, `mailbox/${safeUid}`));
+  const entry = buildMailEntry(mailboxRef.key, {
     ...payload,
     createdAt: payload.createdAt ?? now,
     expiresAt: payload.expiresAt ?? now + MAIL_EXPIRY_MS
@@ -162,7 +161,6 @@ export async function enqueueMail(uid, payload = {}) {
 
   // 먼저 mailbox 경로에 직접 저장 시도
   try {
-    const mailboxRef = push(ref(db, `mailbox/${safeUid}`));
     console.log('📧 [enqueueMail] mailbox 경로 시도:', `mailbox/${safeUid}`);
 
     const minimalData = {
@@ -232,6 +230,4 @@ export async function enqueueMail(uid, payload = {}) {
       throw new Error(`메일 저장에 실패했습니다: ${fallbackError.message}`);
     }
   }
-
-  return entry.id;
 }
