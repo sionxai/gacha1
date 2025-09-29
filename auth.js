@@ -6,8 +6,7 @@ import {
   signOut,
   ref,
   get,
-  set,
-  update
+  set
 } from './firebase.js';
 
 const $ = (selector) => document.querySelector(selector);

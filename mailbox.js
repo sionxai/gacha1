@@ -9,7 +9,6 @@ import {
   remove
 } from './firebase.js';
 import {
-  MAIL_EXPIRY_MS,
   buildMailEntry,
   sanitizeMailRewards,
   sanitizeFirebaseKey
@@ -244,7 +243,6 @@ let currentUser = null;
 let mailboxListener = null;
 let mailboxItems = [];
 let mailboxInitialized = false;
-let mailboxOpen = false;
 
 let widgetEl = null;
 let buttonEl = null;
@@ -333,7 +331,6 @@ function buildMailboxUI() {
 
 function toggleMailbox(open) {
   if (!overlayEl) return;
-  mailboxOpen = open;
   overlayEl.classList.toggle('open', open);
   if (widgetEl) {
     widgetEl.style.opacity = open ? '0' : '1';
@@ -442,7 +439,7 @@ async function claimMail(mail) {
       console.log('✅ [claimMail] Firebase 업데이트 완료');
 
       // 성공적으로 업데이트된 후 UI 업데이트를 위한 이벤트 발생
-      window.dispatchEvent(new CustomEvent('walletUpdated', {
+      window.dispatchEvent(new window.CustomEvent('walletUpdated', {
         detail: {
           wallet: updates.wallet,
           gold: updates.gold,

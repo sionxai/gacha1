@@ -2500,7 +2500,6 @@ ${parts.join(', ')}`;
 
       // Math helpers
       function normalize(weights){ const total = Object.values(weights).reduce((a,b)=>a+b,0); if(!(total>0)) return Object.fromEntries(TIERS.map(t=>[t,0])); return Object.fromEntries(TIERS.map(t=>[t, weights[t]/total])); }
-      function escapeHtml(value){ return String(value ?? '').replace(/[&<>"']/g, function(ch){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[ch]); }); }
       async function sha256Hex(str){ try {
         if(typeof crypto!=='undefined' && crypto.subtle && typeof TextEncoder!=='undefined'){
           const enc = new TextEncoder().encode(str);
@@ -2520,7 +2519,6 @@ ${parts.join(', ')}`;
       function buildWeightsTable(tableBody = null, prefix = ''){
         const tbody = tableBody || els.weightsTable;
         if (!tbody) return;
-        const classPrefix = prefix ? `${prefix}-` : '';
         const dataAttr = prefix ? `data-${prefix}-tier` : 'data-tier';
         const inputClass = prefix ? `${prefix}winput` : 'winput';
 
@@ -2654,7 +2652,7 @@ ${parts.join(', ')}`;
           addListener(els.adminMode, 'change', ()=>{
             if(els.mode && els.mode.value !== els.adminMode.value){
               els.mode.value = els.adminMode.value;
-              els.mode.dispatchEvent(new Event('change'));
+              els.mode.dispatchEvent(new window.Event('change'));
             }
           });
         }
@@ -2747,7 +2745,7 @@ ${parts.join(', ')}`;
           addListener(els.adminSeed, 'input', ()=>{
             if(els.seed && els.seed.value !== els.adminSeed.value){
               els.seed.value = els.adminSeed.value;
-              els.seed.dispatchEvent(new Event('input'));
+              els.seed.dispatchEvent(new window.Event('input'));
             }
           });
         }
@@ -2785,7 +2783,7 @@ ${parts.join(', ')}`;
           addListener(els.adminLock, 'change', ()=>{
             if(els.lock && els.lock.checked !== els.adminLock.checked){
               els.lock.checked = els.adminLock.checked;
-              els.lock.dispatchEvent(new Event('change'));
+              els.lock.dispatchEvent(new window.Event('change'));
             }
           });
         }
@@ -3579,11 +3577,9 @@ ${parts.join(', ')}`;
       function updateDrawPresetValue(group, id, field, value){
         ensureDrawPresetConfig();
         const config = state.config.drawPresets;
-        const defaults = DEFAULT_DRAW_PRESETS[group];
         const arr = config[group] || [];
         const index = arr.findIndex((preset)=> preset.id === id);
         if(index === -1) return;
-        const prev = { ...arr[index] };
         const next = { ...arr[index] };
         const linkedBoostMap = {
           drawBoost1: 'drawBoost10',
@@ -4570,32 +4566,6 @@ ${parts.join(', ')}`;
       function openLegendaryModal(type){ if(!els.legendaryOverlay) return; activeLegendaryType = type; els.legendaryOverlay.hidden = false; requestAnimationFrame(()=> els.legendaryOverlay.classList.add('visible')); if(els.gearLegendaryModal) els.gearLegendaryModal.classList.toggle('active', type === 'gear'); if(els.characterLegendaryModal) els.characterLegendaryModal.classList.toggle('active', type === 'character'); document.body.classList.add('modal-open'); }
       function closeLegendaryModal(){ if(!els.legendaryOverlay) return; els.legendaryOverlay.classList.remove('visible'); els.legendaryOverlay.hidden = true; if(els.gearLegendaryModal) els.gearLegendaryModal.classList.remove('active'); if(els.characterLegendaryModal) els.characterLegendaryModal.classList.remove('active'); activeLegendaryType = null; if(!isUserOptionsOpen() && !state.ui.characterDetailOpen){ document.body.classList.remove('modal-open'); } }
 
-      // Rare animation overlay
-      function resolveRareAnimationAsset(kind, tier, targetId){
-        if(!kind || !tier) return null;
-        const config = state.config?.rareAnimations || {};
-        const entries = Array.isArray(config[kind]) && config[kind].length ? config[kind] : (DEFAULT_RARE_ANIMATIONS[kind] || []);
-        let best = null;
-        let bestPriority = -1;
-        let bestTierIndex = Number.POSITIVE_INFINITY;
-        entries.forEach((asset)=>{
-          if(!asset || typeof asset !== 'object') return;
-          const assetTier = TIERS.includes(asset.tier) ? asset.tier : null;
-          if(assetTier && !isAtLeast(tier, assetTier)) return;
-          if(asset.id){
-            if(!targetId || asset.id !== targetId) return;
-          }
-          const priority = asset.id ? 2 : 1;
-          const tierIndex = assetTier ? TIER_INDEX[assetTier] : Number.POSITIVE_INFINITY;
-          if(priority > bestPriority || (priority === bestPriority && tierIndex < bestTierIndex)){
-            best = asset;
-            bestPriority = priority;
-            bestTierIndex = tierIndex;
-          }
-        });
-        return best;
-      }
-
       function hideRareAnimationOverlay(callback, options){
         const overlay = els.rareAnimationOverlay;
         if(!overlay){ if(typeof callback === 'function') callback(); return; }
@@ -4764,7 +4734,7 @@ ${parts.join(', ')}`;
         }, options);
       }
 
-      function enqueueRareAnimation(payload){
+      function enqueueRareAnimation(){
         return Promise.resolve();
       }
 
@@ -4843,7 +4813,18 @@ ${parts.join(', ')}`;
       }
 
       async function playLegendaryGearAnimation(tier, part){
-        return Promise.resolve();
+        if(!tier) return Promise.resolve();
+        const partName = getPartNameByKey(part) || part || '장비';
+        resetRareAnimationState({ immediate: true });
+        return withRareAnimationBlock(() => playRareAnimation({
+          kind: 'gear',
+          tier,
+          label: `${tier} ${partName}`,
+          targetId: part || null,
+          duration: 0,
+          message: `${partName} 획득!`,
+          sticky: true
+        }));
       }
 
       function fillCharacterStats(target, stats, classId){ if(!target) return; const rows = [
@@ -5261,7 +5242,6 @@ ${parts.join(', ')}`;
         const collected = [];
         const collectFn = shouldRender ? function(payload){ if(payload) collected.push(payload); } : null;
         const batch = n >= 200; const updateEvery = n>=10000? 200 : n>=1000? 50 : n>=200? 10 : 1;
-        const runId = state.runId++;
         const processCharacter = async (tier, index, charId, payload)=>{
           results.push(payload);
           if(typeof collectFn === 'function'){ collectFn(payload); }
@@ -7414,7 +7394,7 @@ ${parts.join(', ')}`;
         }
       });
 
-      window.addEventListener('beforeunload', (e)=>{
+      window.addEventListener('beforeunload', ()=>{
         const timer = getProfileSaveTimerRef();
         if (timer) { clearTimeout(timer); setProfileSaveTimerRef(null); }
         // 동기적으로 localStorage에 백업 저장
@@ -7577,33 +7557,6 @@ ${parts.join(', ')}`;
 
         // 이제 실제 뽑기 함수 호출 (결과는 runDraws에서 처리됨)
         await runDraws(preset);
-      }
-
-      function showSlotMachine(mode, drawType) {
-        if (slotMachineState.isRunning) return;
-
-        slotMachineState.isRunning = true;
-        slotMachineState.currentMode = mode;
-        slotMachineState.skipRequested = false;
-        slotMachineState.results = [];
-
-        // 오버레이 표시
-        slotMachineState.overlay.hidden = false;
-        slotMachineState.overlay.classList.add('visible');
-
-        // 단일/멀티 슬롯 표시 전환
-        const singleSlot = document.getElementById('singleSlot');
-        const multiSlot = document.getElementById('multiSlot');
-
-        if (mode === 'single') {
-          singleSlot.style.display = 'block';
-          multiSlot.style.display = 'none';
-          runSingleSlotAnimation();
-        } else {
-          singleSlot.style.display = 'none';
-          multiSlot.style.display = 'block';
-          runMultiSlotAnimation();
-        }
       }
 
       function hideSlotMachine() {
@@ -7777,10 +7730,7 @@ ${parts.join(', ')}`;
             // 완료
             setTimeout(() => {
               console.log('⚡ 스킵 완료:', resultTier);
-              setTimeout(() => {
-                hideSlotMachine();
-                resolve();
-              }, 1000);
+              finalizeSingleSlot(resultTier, resolve);
             }, 600);
           };
 
@@ -7796,13 +7746,8 @@ ${parts.join(', ')}`;
 
             // 결과 표시
             setTimeout(() => {
-              updateSlotProgress(100);
-              updateSlotMessage(`${resultTier} 등급 획득!`);
               console.log('슬롯머신 단일 슬롯 완료:', resultTier);
-              setTimeout(() => {
-                hideSlotMachine();
-                resolve();
-              }, 2000); // 결과를 충분히 보여준 후 숨기기
+              finalizeSingleSlot(resultTier, resolve);
             }, 500);
           };
 
@@ -7851,69 +7796,6 @@ ${parts.join(', ')}`;
             }, 500);
           }
         }, 2000);
-      }
-
-      function showMultiSlotSummaryEffect(results) {
-        console.log('멀티 슬롯 요약 이펙트 표시:', results);
-
-        // 희귀 등급 개수 세기
-        const rareCounts = {};
-        results.forEach(tier => {
-          if (tier === 'SSS+' || tier === 'SS+' || tier === 'S+') {
-            rareCounts[tier] = (rareCounts[tier] || 0) + 1;
-          }
-        });
-
-        // 희귀 등급이 있으면 표시
-        const rareEntries = Object.entries(rareCounts);
-        if (rareEntries.length > 0) {
-          const summaryText = rareEntries
-            .map(([tier, count]) => `${tier} ${count}개`)
-            .join(', ');
-
-          // 기존 이펙트 제거
-          const existingEffect = document.querySelector('.tier-effect');
-          if (existingEffect) {
-            existingEffect.remove();
-          }
-
-          // 새 이펙트 생성
-          const effect = document.createElement('div');
-          effect.className = 'tier-effect';
-          effect.textContent = `${summaryText} 획득!`;
-
-          // 가장 높은 등급의 색상 사용
-          if (rareCounts['SSS+']) {
-            effect.setAttribute('data-tier', 'SSS+');
-          } else if (rareCounts['SS+']) {
-            effect.setAttribute('data-tier', 'SS+');
-          } else {
-            effect.setAttribute('data-tier', 'S+');
-          }
-
-          // 슬롯머신 컨테이너에 추가
-          const slotContainer = document.querySelector('.slot-container');
-          if (slotContainer) {
-            slotContainer.appendChild(effect);
-
-            // 애니메이션 시작
-            setTimeout(() => {
-              effect.classList.add('show');
-            }, 10);
-
-            // 3초 후 제거
-            setTimeout(() => {
-              if (effect.parentNode) {
-                effect.classList.remove('show');
-                setTimeout(() => {
-                  if (effect.parentNode) {
-                    effect.remove();
-                  }
-                }, 500);
-              }
-            }, 3000);
-          }
-        }
       }
 
       function stopAtTargetTier(slotReel, targetIndex) {
@@ -8025,44 +7907,6 @@ ${parts.join(', ')}`;
             });
           }, 100);
         });
-      }
-
-      function runSingleSlotAnimation() {
-        updateSlotMessage('슬롯 머신을 돌리는 중...');
-        updateSlotProgress(0);
-
-        const slotReel = document.querySelector('#singleSlot .slot-reel');
-        if (!slotReel) return;
-
-        // 빠른 회전 시작
-        slotReel.style.animation = 'slotSpinFast 0.1s linear infinite';
-
-        let progress = 0;
-        const progressInterval = setInterval(() => {
-          if (slotMachineState.skipRequested) {
-            clearInterval(progressInterval);
-            finalizeSingleSlot();
-            return;
-          }
-
-          progress += 2;
-          updateSlotProgress(progress);
-
-          if (progress >= 60) {
-            // 중간 속도로 전환
-            slotReel.style.animation = 'slotSpin 0.2s linear infinite';
-          }
-
-          if (progress >= 90) {
-            clearInterval(progressInterval);
-            // 느린 속도로 전환하고 멈춤
-            slotReel.style.animation = 'slotSpinSlow 0.5s linear 3, slotStop 0.3s ease forwards';
-
-            setTimeout(() => {
-              finalizeSingleSlot();
-            }, 2000);
-          }
-        }, 50);
       }
 
       async function runMultiSlotAnimationWithResults(results) {
@@ -8220,64 +8064,6 @@ ${parts.join(', ')}`;
         });
       }
 
-      function runMultiSlotAnimation() {
-        updateSlotMessage('3x3 슬롯을 돌리는 중...');
-        updateSlotProgress(0);
-
-        const gridSlots = document.querySelectorAll('.grid-slot .slot-reel');
-
-        // 모든 그리드 슬롯 빠르게 회전
-        gridSlots.forEach((reel, index) => {
-          setTimeout(() => {
-            reel.style.animation = 'slotSpinFast 0.1s linear infinite';
-          }, index * 100);
-        });
-
-        let progress = 0;
-        const progressInterval = setInterval(() => {
-          if (slotMachineState.skipRequested) {
-            clearInterval(progressInterval);
-            finalizeMultiSlot();
-            return;
-          }
-
-          progress += 1.5;
-          updateSlotProgress(progress);
-
-          if (progress >= 40) {
-            // 그리드 슬롯들을 하나씩 멈춤 (기본 결과 사용)
-            const defaultResults = ['D', 'D', 'D', 'D', 'D', 'D', 'D', 'D', 'D'];
-            stopGridSlotsSequentially(defaultResults);
-          }
-
-          if (progress >= 70) {
-            clearInterval(progressInterval);
-            runBonusSlotAnimation();
-          }
-        }, 80);
-      }
-
-      function stopGridSlotsSequentially(gridResults) {
-        const gridSlots = document.querySelectorAll('.grid-slot .slot-reel');
-        console.log('🎰 stopGridSlotsSequentially 호출됨, gridResults:', gridResults);
-
-        gridSlots.forEach((reel, index) => {
-          setTimeout(() => {
-            reel.style.animation = 'slotStop 0.4s ease forwards';
-
-            // 매개변수로 받은 정확한 결과 사용
-            const actualTier = gridResults[index] || 'D';
-
-            console.log(`그리드 슬롯 ${index+1} 실제 결과:`, actualTier);
-            setSlotResult(reel, actualTier);
-
-            if (actualTier === 'SSS+' || actualTier === 'SS+') {
-              reel.parentElement.style.animation = 'slotFlash 1s ease-in-out 3';
-            }
-          }, index * 200);
-        });
-      }
-
       function runBonusSlotAnimationWithResult(bonusResult, resolve) {
         console.log('🎁 보너스 슬롯 시작, bonusResult:', bonusResult);
         updateSlotMessage('⭐ 보너스 슬롯 실행 중... ⭐');
@@ -8289,7 +8075,6 @@ ${parts.join(', ')}`;
           return;
         }
 
-        let bonusAnimationStep = 0;
         let bonusTimer1, bonusTimer2;
 
         // 스킵 체크 함수
@@ -8308,12 +8093,10 @@ ${parts.join(', ')}`;
         };
 
         bonusReel.style.animation = 'slotSpinFast 0.15s linear infinite';
-        bonusAnimationStep = 1;
 
         bonusTimer1 = setTimeout(() => {
           if (checkSkip()) return;
           bonusReel.style.animation = 'slotSpin 0.3s linear infinite';
-          bonusAnimationStep = 2;
         }, 1000);
 
         bonusTimer2 = setTimeout(() => {
@@ -8339,61 +8122,31 @@ ${parts.join(', ')}`;
           }
 
           setTimeout(() => {
-            hideSlotMachine();
-            if (resolve) resolve();
+            finalizeMultiSlot(resolve);
           }, 2000);
         }, 2500);
       }
 
-      function runBonusSlotAnimation() {
-        updateSlotMessage('⭐ 보너스 슬롯 실행 중... ⭐');
-
-        const bonusReel = document.querySelector('.bonus-slot .slot-reel');
-        if (!bonusReel) return;
-
-        bonusReel.style.animation = 'slotSpinFast 0.15s linear infinite';
-
-        setTimeout(() => {
-          bonusReel.style.animation = 'slotSpin 0.3s linear infinite';
-        }, 1000);
-
-        setTimeout(() => {
-          bonusReel.style.animation = 'slotSpinSlow 0.6s linear 5, slotStop 0.5s ease forwards';
-
-          setTimeout(() => {
-            const bonusTier = getRandomTier(true); // 보너스는 더 높은 확률
-            setSlotResult(bonusReel, bonusTier);
-
-            if (bonusTier === 'SSS+' || bonusTier === 'SS+') {
-              bonusReel.parentElement.style.animation = 'slotFlash 2s ease-in-out 5';
-            }
-
-            finalizeMultiSlot();
-          }, 3500);
-        }, 2000);
-      }
-
-      function finalizeSingleSlot() {
-        // 슬롯 결과는 이미 runSingleSlotAnimationWithResult에서 설정되었으므로
-        // 여기서는 메시지만 업데이트
-        updateSlotMessage('🎉 1회 뽑기 완료! 🎉');
+      function finalizeSingleSlot(resultTier, onComplete) {
+        const message = resultTier ? `${resultTier} 등급 획득!` : '🎉 1회 뽑기 완료! 🎉';
+        updateSlotMessage(message);
         updateSlotProgress(100);
 
         setTimeout(async () => {
           hideSlotMachine();
-          // 여기서 실제 뽑기 함수 호출
           await triggerOriginalDraw();
+          if (typeof onComplete === 'function') onComplete();
         }, 2000);
       }
 
-      function finalizeMultiSlot() {
+      function finalizeMultiSlot(onComplete) {
         updateSlotMessage('🎉 10회 뽑기 완료! 🎉');
         updateSlotProgress(100);
 
         setTimeout(async () => {
           hideSlotMachine();
-          // 여기서 실제 뽑기 함수 호출
           await triggerOriginalDraw();
+          if (typeof onComplete === 'function') onComplete();
         }, 2500);
       }
 
@@ -8529,25 +8282,6 @@ ${parts.join(', ')}`;
         } else {
           console.error(`❌ [setSlotResult] 티어 "${tier}"를 찾을 수 없음!`);
         }
-      }
-
-      function getRandomTier(isBonus = false) {
-        const tiers = ['SSS+', 'SS+', 'S+', 'S', 'A', 'B', 'C', 'D'];
-        const weights = isBonus
-          ? [5, 10, 15, 20, 25, 15, 8, 2]  // 보너스는 높은 등급 확률 증가
-          : [1, 3, 6, 10, 20, 25, 25, 10]; // 일반 확률
-
-        const totalWeight = weights.reduce((sum, w) => sum + w, 0);
-        let random = Math.random() * totalWeight;
-
-        for (let i = 0; i < tiers.length; i++) {
-          random -= weights[i];
-          if (random <= 0) {
-            return tiers[i];
-          }
-        }
-
-        return 'D';
       }
 
       function updateSlotMessage(message) {

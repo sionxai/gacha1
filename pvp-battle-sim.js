@@ -388,11 +388,6 @@ function applyTimeStop(state, entity, turns) {
   addLog(state, `${entity.name}이(가) ${dur}턴 동안 행동 불가 상태가 되었습니다.`, 'critical');
 }
 
-function reduceSkillCooldown(entity, amount) {
-  const current = Number.isFinite(entity.skillCooldown) ? entity.skillCooldown : 0;
-  entity.skillCooldown = Math.max(0, current - Math.max(0, Math.round(amount || 0)));
-}
-
 function resetSkillCooldown(entity) {
   entity.skillCooldown = 0;
 }
@@ -556,9 +551,7 @@ function performSkill(state, attacker, defender) {
   const classId = attacker.classId || 'warrior';
   const offensive = getEffectiveStats(attacker);
   const result = calculateAttack(state, attacker, defender, true);
-  let damageApplied = false;
   const logPrefix = `${attacker.name}의 스킬`;
-  const skillMultiplier = getSkillMultiplier(attacker);
   switch (classId) {
     case 'warrior': {
       if (result.type === 'MISS') {
@@ -574,7 +567,6 @@ function performSkill(state, attacker, defender) {
       });
       const shield = Math.max(1, Math.round((attacker.baseStats.def || 0) * 2.4));
       addShield(state, attacker, shield);
-      damageApplied = true;
       break;
     }
     case 'mage': {
@@ -591,7 +583,6 @@ function performSkill(state, attacker, defender) {
           const healAmount = Math.max(1, Math.round(dealt * 0.35));
           healEntity(state, attacker, healAmount, `${attacker.name}이(가) 마력을 수복! 체력 {heal}`);
         }
-        damageApplied = true;
       } else {
         addLog(state, `${logPrefix}이 적중하지 못했습니다.`, 'warn');
       }
@@ -629,7 +620,6 @@ function performSkill(state, attacker, defender) {
       if (misses > 0) {
         addLog(state, `${misses}발이 빗나갔습니다.`, 'warn');
       }
-      damageApplied = total > 0;
       break;
     }
     case 'rogue': {
@@ -647,7 +637,6 @@ function performSkill(state, attacker, defender) {
       });
       const bleedDamage = Math.max(1, Math.round(scaleSkillDamage((attacker.baseStats.atk || 0) * 0.5, attacker)));
       applyBleed(state, defender, bleedDamage, 3, `출혈 피해! {dmg}`);
-      damageApplied = true;
       break;
     }
     case 'goddess': {
@@ -660,7 +649,6 @@ function performSkill(state, attacker, defender) {
           logMessage: `${attacker.name}의 여신의 심판! {dmg} 피해`,
           logTone: 'critical'
         });
-        damageApplied = true;
       } else {
         addLog(state, `${logPrefix}이 적중하지 못했습니다.`, 'warn');
       }
@@ -682,7 +670,6 @@ function performSkill(state, attacker, defender) {
         logMessage: `${attacker.name}의 필살기! {dmg} 피해`,
         logTone: 'damage'
       });
-      damageApplied = true;
     }
   }
   attacker.skillCooldown = getSkillCooldown(classId);
@@ -691,7 +678,6 @@ function performSkill(state, attacker, defender) {
 function applyUltimate(state, attacker, defender, def) {
   const variant = def.variant || `${attacker.classId}-${attacker.tier}`;
   const offensive = getEffectiveStats(attacker);
-  const skillMultiplier = getSkillMultiplier(attacker);
   switch (variant) {
     case 'warrior-sssplus': {
       const damage = Math.max(0, Math.round(scaleSkillDamage(offensive.atk * 5.5, attacker)));

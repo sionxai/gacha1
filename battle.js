@@ -29,17 +29,14 @@ import {
   computePlayerStats as derivePlayerStats,
   combatPower,
   calculateDamage,
-  PET_IDS,
   createDefaultPetState,
   sanitizePetState,
   getPetDefinition,
   describePetAbilities,
   createDefaultCharacterState,
   sanitizeCharacterState,
-  CHARACTER_IDS,
   getCharacterDefinition,
   getCharacterImageVariants,
-  characterBaseStats,
   CHARACTER_ULTIMATE_DEFS,
   sanitizeUserSettings
 } from './combat-core.js';
@@ -50,7 +47,6 @@ import {
 } from './quest-core.js';
 
 const qs = (selector) => document.querySelector(selector);
-const qsa = (selector) => Array.from(document.querySelectorAll(selector));
 
 const els = {
   whoami: qs('#whoamiBattle'),
@@ -206,9 +202,7 @@ const AUTO_STOP_REASON_LABELS = {
 const AUTO_SESSION_STORAGE_PREFIX = 'gacha:autoSession:';
 const FIRST_BOSS_INTRO_VIDEO_URL = 'https://firebasestorage.googleapis.com/v0/b/gacha-870fa.firebasestorage.app/o/kling_20250920_Image_to_Video__3595_0.mp4?alt=media&token=6ab78f59-2753-4c22-bfd0-14d21739b6f0';
 const TIGER_KILL_GIF_URL = 'https://firebasestorage.googleapis.com/v0/b/gacha-870fa.firebasestorage.app/o/new4.gif?alt=media&token=3d395ec5-a922-45e0-9486-524b0a3f07aa';
-const DEFAULT_ULTIMATE_GIF_URL = '';
 const ULTIMATE_TEXT_DURATION_MS = 1000;
-const ULTIMATE_GIF_DURATION_MS = 2500;
 const PLAYER_ULTIMATE_DEFAULT_CHANCE = 0.05;
 const BOSS_IDS = ['boss150', 'boss300', 'boss450', 'boss550', 'boss800'];
 
@@ -744,7 +738,6 @@ function difficultyConfig(id) {
     state.config.difficultyAdjustments = adjustments;
   }
   const percent = preset.id === 'easy' ? adjustments.easy : (preset.id === 'hard' ? adjustments.hard : 0);
-  const baseMultiplier = Math.max(0.01, Number(state.config?.monsterScaling?.difficultyMultiplier) || DEFAULT_MONSTER_SCALING.difficultyMultiplier);
   const ratio = Math.max(0.05, 1 + percent / 100);
   return {
     id: preset.id,
@@ -879,7 +872,7 @@ function detachBossIntroListeners() {
   state.pendingBossIntro.listeners.forEach(({ event, handler }) => {
     try {
       els.bossIntroVideo.removeEventListener(event, handler);
-    } catch (error) {
+    } catch {
       // ignore removal errors
     }
   });
@@ -889,10 +882,10 @@ function detachBossIntroListeners() {
 function teardownBossIntroOverlay() {
   detachBossIntroListeners();
   if (els.bossIntroVideo) {
-    try { els.bossIntroVideo.pause(); } catch (error) {}
+    try { els.bossIntroVideo.pause(); } catch {}
     els.bossIntroVideo.removeAttribute('src');
     if (typeof els.bossIntroVideo.load === 'function') {
-      try { els.bossIntroVideo.load(); } catch (error) {}
+      try { els.bossIntroVideo.load(); } catch {}
     }
   }
   if (els.bossIntroVideoWrap) {
@@ -931,7 +924,7 @@ function launchBossIntro(boss) {
   try {
     video.removeAttribute('src');
     video.load();
-  } catch (error) {}
+  } catch {}
   video.preload = 'auto';
   video.src = FIRST_BOSS_INTRO_VIDEO_URL;
   video.currentTime = 0;
@@ -1368,6 +1361,11 @@ function endBossEncounter(result = 'neutral') {
   clearBossStateEffects(bossContext);
   gameState.battle.bossFight = null;
   setBossControlsDisabled(false);
+  if (result === 'victory') {
+    addBattleLog('보스를 처치했습니다! 다음 도전에 대비하세요.', 'critical');
+  } else if (result === 'defeat') {
+    addBattleLog('보스에게 패배했습니다. 장비와 전술을 정비해 다시 도전하세요.', 'warn');
+  }
   updateBossUi();
   const restoreLevel = clampMonsterLevel(state.lastNormalLevel || 1);
   updateMonsterLevelUI(restoreLevel);
@@ -1755,7 +1753,6 @@ function triggerPlayerUltimate(def) {
 
 function finalizeUltimateTurn() {
   state.ultimateActive = false;
-  const pending = state.ultimatePending;
   state.ultimatePending = null;
   cancelUltimateTimers();
   hideUltimateOverlay();
@@ -1777,7 +1774,7 @@ function applyUltimateEffect(def) {
   switch (variant) {
     case 'warrior-sssplus': {
       const baseDamage = Math.round(offensive.atk * 5.5);
-      const dealt = dealUltimateDamage(baseDamage, `[필살기] ${def.name}! {dmg} 피해`);
+      dealUltimateDamage(baseDamage, `[필살기] ${def.name}! {dmg} 피해`);
       if (gameState.enemy.hp > 0) {
         const trueDamage = Math.max(1, Math.round(gameState.enemy.hp * 0.15));
         gameState.enemy.hp = Math.max(0, gameState.enemy.hp - trueDamage);
@@ -2084,6 +2081,11 @@ function applyDamageToPlayer(amount, options = {}) {
     gameState.player.petTigerReflect = false;
     triggerPetAnimation('reflect');
     applyDamageToEnemy(remaining, '[펫] 호랭찡의 복수! {dmg} 반사 피해');
+  }
+  if (remaining > 0) {
+    const sourceLabel = options.source ? `[${options.source}]` : '[피해]';
+    const tone = options.critical ? 'critical' : 'damage';
+    addBattleLog(`${sourceLabel} ${formatNum(remaining)} 피해를 받았습니다.`, tone);
   }
   return remaining;
 }
@@ -2759,7 +2761,7 @@ function rememberAutoSessionSnapshot(payload) {
   try {
     const snapshot = { ...payload, savedAt: Date.now() };
     localStorage.setItem(key, JSON.stringify(snapshot));
-  } catch (error) {
+  } catch {
     // ignore storage errors
   }
 }
@@ -2773,7 +2775,7 @@ function readAutoSessionSnapshot() {
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object') return null;
     return sanitizeAutoSession(parsed);
-  } catch (error) {
+  } catch {
     return null;
   }
 }
@@ -2783,7 +2785,7 @@ function clearAutoSessionSnapshot() {
   if (!key || typeof localStorage === 'undefined') return;
   try {
     localStorage.removeItem(key);
-  } catch (error) {
+  } catch {
     // ignore storage errors
   }
 }
@@ -3336,7 +3338,12 @@ function openHell(reason = 'threshold') {
   session.accumulatedMs = computeAutoThresholdMs(session);
   session.lastUpdate = now;
   const label = forced === manual ? difficultyLabel(forced) : `${difficultyLabel(forced)} (기존 ${difficultyLabel(manual)})`;
-  addBattleLog(`[지옥문 개방] ${label} 난이도가 강제 적용됩니다.`, 'damage');
+  const reasonLabel = reason === 'threshold'
+    ? '자동 전투 임계치 도달'
+    : reason === 'manual'
+      ? '사용자 요청'
+      : '조건 충족';
+  addBattleLog(`[지옥문 개방] ${reasonLabel}으로 ${label} 난이도가 강제 적용됩니다.`, 'damage');
   persistAutoSession();
   updateAutoSessionUi();
   updateEnemyStats(gameState.enemy.level || 1);

@@ -36,7 +36,7 @@ export default [
   js.configs.recommended,
   {
     files: ["**/*.js"],
-    ignores: ["node_modules/**"],
+    ignores: ["node_modules/**", "functions/**"],
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "module",
@@ -58,6 +58,23 @@ export default [
         process: "readonly",
         __dirname: "readonly"
       }
+    }
+  },
+  {
+    files: ["functions/**/*.js"],
+    languageOptions: {
+      ecmaVersion: "latest",
+      sourceType: "commonjs",
+      globals: {
+        ...browserGlobals,
+        module: "readonly",
+        require: "readonly",
+        exports: "writable",
+        process: "readonly"
+      }
+    },
+    rules: {
+      "no-undef": "off"
     }
   }
 ];

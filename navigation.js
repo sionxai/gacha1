@@ -640,7 +640,7 @@ body[data-page="index"][data-active-section="shop"] [data-section="shop"] {
       if (typeof value !== 'number' || !isFinite(value)) return '--:--';
       try {
         return timeFormatter.format(new Date(value));
-      } catch (error) {
+      } catch {
         return '--:--';
       }
     }

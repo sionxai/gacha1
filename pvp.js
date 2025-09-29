@@ -10,7 +10,6 @@ import {
   onValue
 } from './firebase.js';
 import {
-  PART_DEFS,
   PART_ICONS,
   sanitizeEquipMap,
   sanitizeItems,

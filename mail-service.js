@@ -1,4 +1,4 @@
-import { db, ref, set, update, push } from './firebase.js';
+import { db, ref, set, push } from './firebase.js';
 
 export const MAIL_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000;
 
