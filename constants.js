@@ -199,3 +199,34 @@ export const CLASS_LABELS = {
   rogue: '도적',
   goddess: '여신'
 };
+
+// 쿠폰 시스템 관련 상수들
+export const COUPON_TYPES = {
+  GEAR: 'gear',
+  CHARACTER: 'character',
+  PET: 'pet'
+};
+
+export const GEAR_COUPON_DEFS = [
+  { key: 'head', name: 'SSS+ 투구 쿠폰', icon: '🪖🎟️' },
+  { key: 'body', name: 'SSS+ 갑옷 쿠폰', icon: '🛡️🎟️' },
+  { key: 'main', name: 'SSS+ 주무기 쿠폰', icon: '⚔️🎟️' },
+  { key: 'off', name: 'SSS+ 보조무기 쿠폰', icon: '🗡️🎟️' },
+  { key: 'boots', name: 'SSS+ 신발 쿠폰', icon: '🥾🎟️' }
+];
+
+export const CHARACTER_COUPON_DEFS = [
+  { key: 'warrior', name: 'SSS+ 전사 쿠폰', icon: '⚔️🎟️' },
+  { key: 'mage', name: 'SSS+ 마법사 쿠폰', icon: '🔮🎟️' },
+  { key: 'archer', name: 'SSS+ 궁수 쿠폰', icon: '🏹🎟️' },
+  { key: 'rogue', name: 'SSS+ 도적 쿠폰', icon: '🗡️🎟️' },
+  { key: 'goddess', name: 'SSS+ 여신 쿠폰', icon: '✨🎟️' }
+];
+
+export const PET_COUPON_DEFS = [
+  { key: 'pet_ant', name: '사막 개미 수호병 쿠폰', icon: '🐜🎟️' },
+  { key: 'pet_deer', name: '신속 사슴 쿠폰', icon: '🦌🎟️' },
+  { key: 'pet_goat', name: '암석 산양 쿠폰', icon: '🐐🎟️' },
+  { key: 'pet_tiger', name: '백호 쿠폰', icon: '🐅🎟️' },
+  { key: 'pet_horang', name: '호랭찡 쿠폰', icon: '🐯🎟️' }
+];

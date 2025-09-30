@@ -51,7 +51,11 @@ import {
   LEGACY_GEAR_RARE_GIF,
   CHARACTER_SSPLUS_GIF,
   CHARACTER_SSSPLUS_GIF,
-  LEGACY_CHARACTER_RARE_GIF
+  LEGACY_CHARACTER_RARE_GIF,
+  COUPON_TYPES,
+  GEAR_COUPON_DEFS,
+  CHARACTER_COUPON_DEFS,
+  PET_COUPON_DEFS
 } from './constants.js';
 import {
   chooseTier,
@@ -98,6 +102,12 @@ import {
   getCharacterDefinition,
   getCharacterImageVariants,
   effectiveStat,
+  ENHANCEMENT_RULES,
+  getEnhancementRequirement,
+  getEnhancementMultiplier,
+  MAX_ENHANCEMENT_LEVEL,
+  clampEnhancementLevel,
+  clampEnhancementProgress,
   sanitizeUserSettings,
   sanitizeCharacterBalance,
   sanitizeDifficultyAdjustments,
@@ -231,7 +241,7 @@ import { attachAuthObserver } from './state/auth.js';
         chart: $('#chart'), log: $('#log'),
         atkTotal: $('#atkTotal'), defTotal: $('#defTotal'), nextMonster: $('#nextMonster'), monLevel: $('#monLevel'), monLevelVal: $('#monLevelVal'), winProb: $('#winProb'), fightBtn: $('#fightBtn'), fightResult: $('#fightResult'), autoHuntBtn: $('#autoHuntBtn'), manualCd: $('#manualCd'), autoCd: $('#autoCd'), lvlDec: $('#lvlDec'), lvlInc: $('#lvlInc'), potionCount: $('#potionCount'), usePotion: $('#usePotion'), hyperPotionCount: $('#hyperPotionCount'), useHyperPotion: $('#useHyperPotion'), buffInfo: $('#buffInfo'), claimRevive: $('#claimRevive'), battleResUse: $('#battleResUse'), battleResRemain: $('#battleResRemain'), battleWinProb: $('#battleWinProb'), playerHealthBar: $('#playerHealthBar'), enemyHealthBar: $('#enemyHealthBar'), playerAtkStat: $('#playerAtkStat'), playerDefStat: $('#playerDefStat'), battleEnemyLevel: $('#battleEnemyLevel'), battleEnemyReward: $('#battleEnemyReward'),
         invCount: $('#invCount'), equipGrid: $('#equipGrid'), spareList: $('#spareList'),
-        forgeTarget: $('#forgeTarget'), forgeLv: $('#forgeLv'), forgeMul: $('#forgeMul'), forgeStageMul: $('#forgeStageMul'), forgeP: $('#forgeP'), forgePreview: $('#forgePreview'), forgeCostEnh: $('#forgeCostEnh'), forgeCostProtect: $('#forgeCostProtect'), forgeCostGold: $('#forgeCostGold'), forgeOnce: $('#forgeOnce'), forgeAuto: $('#forgeAuto'), forgeTableBody: $('#forgeTableBody'), forgeReset: $('#forgeReset'), forgeMsg: $('#forgeMsg'), forgeEffect: $('#forgeEffect'), forgeProtectUse: $('#forgeProtectUse'), protectCount: $('#protectCount'), enhanceCount: $('#enhanceCount'), reviveCount: $('#reviveCount'),
+        forgeTarget: $('#forgeTarget'), forgeLv: $('#forgeLv'), forgeMul: $('#forgeMul'), forgeStageMul: $('#forgeStageMul'), forgeP: $('#forgeP'), forgePreview: $('#forgePreview'), forgeCostEnh: $('#forgeCostEnh'), forgeCostProtect: $('#forgeCostProtect'), forgeCostGold: $('#forgeCostGold'), forgeOnce: $('#forgeOnce'), forgeAuto: $('#forgeAuto'), forgeTableBody: $('#forgeTableBody'), forgeReset: $('#forgeReset'), forgeMsg: $('#forgeMsg'), forgeEffect: $('#forgeEffect'), forgeProtectUse: $('#forgeProtectUse'), protectCount: $('#protectCount'), enhanceCount: $('#enhanceCount'), reviveCount: $('#reviveCount'), gearShardSummary: $('#gearShardSummary'),
         pricePotion: $('#pricePotion'), priceHyper: $('#priceHyper'), priceProtect: $('#priceProtect'), priceEnhance: $('#priceEnhance'), priceBattleRes: $('#priceBattleRes'), priceStarter: $('#priceStarter'),
         invPotion: $('#invPotion'), invHyper: $('#invHyper'), invProtect: $('#invProtect'), invEnhance: $('#invEnhance'), invBattleRes: $('#invBattleRes'), invHolyWater: $('#invHolyWater'), shopPanel: $('#shop'), diamondShop: $('#diamondShop'), diamondShopGrid: $('#diamondShopGrid'),
         petList: $('#petList'),
@@ -244,6 +254,7 @@ import { attachAuthObserver } from './state/auth.js';
         userOptionsBtn: $('#userOptionsBtn'), userOptionsModal: $('#userOptionsModal'), userOptionsSave: $('#userOptionsSave'), userOptionsClose: $('#userOptionsClose'), userOptionsCharacterGif: $('#userOptionsCharacterGif'), userOptionsPetGif: $('#userOptionsPetGif'),
         adminPresetSelect: $('#adminPresetSelect'), adminPresetApply: $('#adminPresetApply'), adminPresetLoad: $('#adminPresetLoad'), adminPresetDelete: $('#adminPresetDelete'), adminPresetName: $('#adminPresetName'), adminPresetSave: $('#adminPresetSave'), presetAdminMsg: $('#presetAdminMsg'),
         adminUserSelect: $('#adminUserSelect'), adminUserStats: $('#adminUserStats'), adminGrantPoints: $('#adminGrantPoints'), adminGrantGold: $('#adminGrantGold'), adminGrantDiamonds: $('#adminGrantDiamonds'), adminGrantPetTickets: $('#adminGrantPetTickets'), adminGrantSubmit: $('#adminGrantSubmit'),
+        adminCouponUserSelect: $('#adminCouponUserSelect'), adminCouponUserStats: $('#adminCouponUserStats'), adminCouponType: $('#adminCouponType'), adminCouponSubmit: $('#adminCouponSubmit'), adminCouponMsg: $('#adminCouponMsg'),
         adminUserSelect2: $('#adminUserSelect2'), adminUserStats2: $('#adminUserStats2'), adminUserSelect3: $('#adminUserSelect3'), adminUserStats3: $('#adminUserStats3'),
         adminBackupRefresh: $('#adminBackupRefresh'), adminRestoreFromMirror: $('#adminRestoreFromMirror'), adminRestoreFromSnapshot: $('#adminRestoreFromSnapshot'), adminSnapshotSelect: $('#adminSnapshotSelect'), adminBackupStatus: $('#adminBackupStatus'), adminSnapshotTableBody: $('#adminSnapshotTableBody'),
         globalPresetSelect: $('#globalPresetSelect'), personalPresetSelect: $('#personalPresetSelect'), applyGlobalPreset: $('#applyGlobalPreset'), applyPersonalPreset: $('#applyPersonalPreset'), personalPresetName: $('#personalPresetName'), savePersonalPreset: $('#savePersonalPreset'), presetMsg: $('#presetMsg'), toggleUserEdit: $('#toggleUserEdit'),
@@ -425,6 +436,7 @@ import { attachAuthObserver } from './state/auth.js';
         spares: { head:null, body:null, main:null, off:null, boots:null },
         itemSeq: 1,
         enhance: defaultEnhance(),
+        gearShards: createEmptyGearShardState(),
         forge: { protectEnabled: false, protectStock: 0, autoRunning: false },
         user: null,
         ui: { adminView: false, userEditEnabled: false, statsMode: 'gear', gachaMode: 'gear', selectedCharacterDetail: null, characterDetailOpen: false, userOptionsOpen: false, questOpen: false, rareAnimationBlocking: false },
@@ -1427,7 +1439,7 @@ import { attachAuthObserver } from './state/auth.js';
       }
 
       function populateAdminUserSelect(){
-        const selects = [els.adminUserSelect, els.adminUserSelect2, els.adminUserSelect3].filter(Boolean);
+        const selects = [els.adminUserSelect, els.adminUserSelect2, els.adminUserSelect3, els.adminCouponUserSelect].filter(Boolean);
         const users = Array.isArray(state.adminUsers) ? state.adminUsers : [];
 
         selects.forEach(function(select) {
@@ -1468,7 +1480,8 @@ import { attachAuthObserver } from './state/auth.js';
         const selectStatsPairs = [
           {select: els.adminUserSelect, stats: els.adminUserStats},
           {select: els.adminUserSelect2, stats: els.adminUserStats2},
-          {select: els.adminUserSelect3, stats: els.adminUserStats3}
+          {select: els.adminUserSelect3, stats: els.adminUserStats3},
+          {select: els.adminCouponUserSelect, stats: els.adminCouponUserStats}
         ];
 
         selectStatsPairs.forEach(function(pair) {
@@ -1792,6 +1805,393 @@ ${parts.join(', ')}`;
           throw new Error(`우편 발송에 실패했습니다: ${mailError.message}`);
         }
         return true;
+      }
+
+      // 쿠폰 지급 관련 함수들
+      function setAdminCouponMsg(message, tone = '') {
+        if (!els.adminCouponMsg) return;
+        els.adminCouponMsg.textContent = message || '';
+        els.adminCouponMsg.classList.remove('ok', 'warn', 'error');
+        if (tone) els.adminCouponMsg.classList.add(tone);
+      }
+
+      function getCouponDisplayName(type, targetKey) {
+        if (type === 'gear') {
+          const def = GEAR_COUPON_DEFS.find(d => d.key === targetKey);
+          return def ? def.name : `SSS+ ${targetKey} 쿠폰`;
+        } else if (type === 'character') {
+          const def = CHARACTER_COUPON_DEFS.find(d => d.key === targetKey);
+          return def ? def.name : `SSS+ ${CLASS_LABELS[targetKey] || targetKey} 쿠폰`;
+        } else if (type === 'pet') {
+          const def = PET_COUPON_DEFS.find(d => d.key === targetKey);
+          return def ? def.name : `${targetKey} 쿠폰`;
+        }
+        return '알 수 없는 쿠폰';
+      }
+
+      async function handleAdminCouponGrant() {
+        if (!isAdmin()) return;
+
+        const uid = els.adminCouponUserSelect?.value || '';
+        const couponValue = els.adminCouponType?.value || '';
+
+        if (!uid) {
+          setAdminCouponMsg('지급할 대상을 선택하세요.', 'warn');
+          return;
+        }
+
+        if (!couponValue) {
+          setAdminCouponMsg('지급할 쿠폰을 선택하세요.', 'warn');
+          return;
+        }
+
+        const [type, targetKey] = couponValue.split(':');
+        if (!type || !targetKey) {
+          setAdminCouponMsg('올바르지 않은 쿠폰 형식입니다.', 'error');
+          return;
+        }
+
+        const targetAll = uid === ALL_USERS_OPTION;
+        const couponName = getCouponDisplayName(type, targetKey);
+
+        try {
+          if (targetAll) {
+            if (!Array.isArray(state.adminUsers) || !state.adminUsers.length) {
+              await loadAdminUsers();
+            }
+            const users = Array.isArray(state.adminUsers) ? state.adminUsers : [];
+            const eligibleCount = users.filter(user => user && user.role !== 'admin').length;
+
+            if (eligibleCount === 0) {
+              setAdminCouponMsg('지급 대상 일반 사용자가 없습니다.', 'warn');
+              return;
+            }
+
+            if (!window.confirm(`일반 사용자 ${formatNum(eligibleCount)}명에게 ${couponName}을(를) 지급합니다. 계속할까요?`)) {
+              return;
+            }
+
+            const delivered = await grantCouponToAllUsers(type, targetKey);
+            if (delivered <= 0) {
+              setAdminCouponMsg('지급 가능한 사용자가 없습니다.', 'warn');
+              return;
+            }
+
+            await loadAdminUsers();
+            if (els.adminCouponUserSelect) els.adminCouponUserSelect.value = ALL_USERS_OPTION;
+            setAdminCouponMsg(`전체 ${formatNum(delivered)}명에게 ${couponName} 지급 완료`, 'ok');
+          } else {
+            const success = await grantCouponToUser(uid, type, targetKey);
+            if (!success) {
+              setAdminCouponMsg('쿠폰 지급에 실패했습니다.', 'error');
+              return;
+            }
+
+            await loadAdminUsers();
+            if (els.adminCouponUserSelect) els.adminCouponUserSelect.value = uid;
+            setAdminCouponMsg(`${couponName} 지급 완료`, 'ok');
+          }
+
+          // 폼 초기화
+          if (els.adminCouponType) els.adminCouponType.value = '';
+        } catch (error) {
+          console.error('쿠폰 지급 처리 실패', error);
+          setAdminCouponMsg('쿠폰 지급 처리에 실패했습니다.', 'error');
+        }
+      }
+
+      async function grantCouponToAllUsers(type, targetKey) {
+        if (!isAdmin()) return 0;
+
+        if (!Array.isArray(state.adminUsers) || !state.adminUsers.length) {
+          await loadAdminUsers();
+        }
+
+        const users = Array.isArray(state.adminUsers) ? state.adminUsers : [];
+        const targets = users.filter(user => user && user.uid && user.role !== 'admin');
+
+        if (!targets.length) return 0;
+
+        let success = 0;
+        for (const user of targets) {
+          try {
+            const granted = await grantCouponToUser(user.uid, type, targetKey);
+            if (granted) success += 1;
+          } catch (error) {
+            console.error('쿠폰 지급 처리 실패', error);
+          }
+        }
+
+        return success;
+      }
+
+      async function grantCouponToUser(uid, type, targetKey) {
+        const userRef = ref(db, `users/${uid}`);
+        const snapshot = await get(userRef);
+
+        if (!snapshot.exists()) {
+          throw new Error('사용자를 찾을 수 없습니다.');
+        }
+
+        const data = snapshot.val() || {};
+        const role = data.role === 'admin' ? 'admin' : 'user';
+
+        if (role === 'admin') {
+          console.log('관리자에게는 아이템을 지급하지 않습니다.');
+          return false;
+        }
+
+        // 직접 아이템 생성 및 지급
+        const itemName = getCouponDisplayName(type, targetKey);
+        let message = '';
+        let customRewards = {};
+
+        try {
+          if (type === 'gear') {
+            // 장비 직접 생성 및 지급
+            const gearItem = await createDirectGear(targetKey, 'SSS+');
+            message = `관리자가 ${itemName}을(를) 지급했습니다.\n\n${gearItem.name}이(가) 우편함으로 발송되었습니다!`;
+            customRewards = { directGear: gearItem };
+          } else if (type === 'character') {
+            // 캐릭터 직접 지급
+            const characterResult = await createDirectCharacter(targetKey, 'SSS+');
+            message = `관리자가 ${itemName}을(를) 지급했습니다.\n\n${characterResult.name}이(가) 우편함으로 발송되었습니다!`;
+            customRewards = { directCharacter: characterResult };
+          } else if (type === 'pet') {
+            // 펫 직접 지급
+            const petResult = await createDirectPet(targetKey);
+            message = `관리자가 ${itemName}을(를) 지급했습니다.\n\n${petResult.name}이(가) 우편함으로 발송되었습니다!`;
+            customRewards = { directPet: petResult };
+          }
+
+          await enqueueMail(uid, {
+            title: `🎁 ${itemName} 지급`,
+            message,
+            type: 'direct_item_grant',
+            rewards: customRewards,
+            metadata: {
+              grantedBy: currentFirebaseUser?.uid || 'system',
+              grantedAt: Date.now(),
+              source: 'admin_panel',
+              recipientUid: uid
+            }
+          });
+
+          return true;
+        } catch (mailError) {
+          console.error('📧 쿠폰 우편 발송 실패:', mailError);
+          throw new Error(`쿠폰 우편 발송에 실패했습니다: ${mailError.message}`);
+        }
+      }
+
+      function updateAdminCouponUserStats() {
+        updateAdminUserStats(); // 기존 함수를 재사용하여 모든 select들을 업데이트
+      }
+
+      // 직접 아이템 생성 함수들
+      async function createDirectGear(partKey, tier) {
+        const rng = getRng();
+        const partDef = PART_DEFS.find(p => p.key === partKey);
+
+        if (!partDef) {
+          throw new Error(`존재하지 않는 장비 부위: ${partKey}`);
+        }
+
+        const stat = rollStatFor(tier, partKey, rng);
+        const gearItem = {
+          id: state.itemSeq++,
+          tier,
+          part: partKey,
+          base: stat,
+          lvl: 0,
+          type: partDef.type,
+          __adminGranted: true
+        };
+
+        return {
+          item: gearItem,
+          name: `${tier} ${partDef.name}`,
+          partKey: partKey
+        };
+      }
+
+      async function createDirectCharacter(classKey, tier) {
+        const characterIds = CHARACTER_IDS_BY_TIER[tier] || [];
+        const classCharacters = characterIds.filter(id => {
+          const def = getCharacterDefinition(id);
+          return def && def.class === classKey;
+        });
+
+        if (!classCharacters.length) {
+          throw new Error(`해당 클래스의 ${tier} 캐릭터를 찾을 수 없음: ${classKey}`);
+        }
+
+        const characterId = classCharacters[0];
+        const def = getCharacterDefinition(characterId);
+
+        return {
+          characterId,
+          definition: def,
+          name: `${tier} ${def.name}`,
+          class: classKey
+        };
+      }
+
+      async function createDirectPet(petId) {
+        const def = getPetDefinition(petId);
+
+        if (!def) {
+          throw new Error(`존재하지 않는 펫: ${petId}`);
+        }
+
+        return {
+          petId,
+          definition: def,
+          name: def.name
+        };
+      }
+
+      // 100% 확률 뽑기 시스템 (기존 쿠폰 시스템 - 사용 안함)
+      async function processCouponRedemption(coupon) {
+        console.log('🎟️ [processCouponRedemption] 시작:', coupon);
+
+        if (!coupon || !coupon.type || !coupon.targetKey) {
+          console.error('❌ [processCouponRedemption] 잘못된 쿠폰 데이터:', coupon);
+          return null;
+        }
+
+        const { type, targetKey, tier = 'SSS+' } = coupon;
+        console.log('🎟️ [processCouponRedemption] 처리할 쿠폰:', { type, targetKey, tier });
+
+        try {
+          let result = null;
+          if (type === 'gear') {
+            console.log('⚔️ [processCouponRedemption] 장비 쿠폰 처리 시작...');
+            result = await generateGuaranteedGear(targetKey, tier);
+          } else if (type === 'character') {
+            console.log('👤 [processCouponRedemption] 캐릭터 쿠폰 처리 시작...');
+            result = await generateGuaranteedCharacter(targetKey, tier);
+          } else if (type === 'pet') {
+            console.log('🐾 [processCouponRedemption] 펫 쿠폰 처리 시작...');
+            result = await generateGuaranteedPet(targetKey);
+          } else {
+            console.error('❌ [processCouponRedemption] 알 수 없는 쿠폰 타입:', type);
+            return null;
+          }
+
+          console.log('✅ [processCouponRedemption] 처리 완료:', result);
+          return result;
+        } catch (error) {
+          console.error('❌ [processCouponRedemption] 쿠폰 처리 중 오류:', error);
+          console.error('오류 스택:', error.stack);
+          return null;
+        }
+      }
+
+      async function generateGuaranteedGear(partKey, tier) {
+        const rng = getRng();
+        const partDef = PART_DEFS.find(p => p.key === partKey);
+
+        if (!partDef) {
+          console.error('존재하지 않는 장비 부위:', partKey);
+          return null;
+        }
+
+        const stat = rollStatFor(tier, partKey, rng);
+        const item = {
+          id: state.itemSeq++,
+          tier,
+          part: partKey,
+          base: stat,
+          lvl: 0,
+          type: partDef.type,
+          __couponGenerated: true
+        };
+
+        // 인벤토리에 추가
+        applyEquipAndInventory(item);
+
+        // 프로필 저장 및 UI 업데이트
+        await saveProfile();
+        updateInventoryView();
+
+        console.log('🎟️ 쿠폰으로 생성된 장비:', item);
+        return {
+          type: 'gear',
+          item,
+          message: `${tier} ${partDef.name}을(를) 획득했습니다!`
+        };
+      }
+
+      async function generateGuaranteedCharacter(classKey, tier) {
+        // 캐릭터 시스템에서 해당 클래스의 해당 등급 캐릭터 생성
+        const characterIds = CHARACTER_IDS_BY_TIER[tier] || [];
+        const classCharacters = characterIds.filter(id => {
+          const def = getCharacterDefinition(id);
+          return def && def.class === classKey;
+        });
+
+        if (!classCharacters.length) {
+          console.error('해당 클래스의 캐릭터를 찾을 수 없음:', classKey, tier);
+          return null;
+        }
+
+        // 첫 번째 캐릭터 선택 (실제로는 랜덤하게 선택할 수도 있음)
+        const characterId = classCharacters[0];
+        const def = getCharacterDefinition(characterId);
+
+        // 캐릭터 수량 증가
+        if (!state.characters.owned[characterId]) {
+          state.characters.owned[characterId] = 0;
+        }
+        state.characters.owned[characterId] += 1;
+
+        // 첫 번째 획득한 캐릭터라면 대표 캐릭터로 설정
+        if (state.characters.owned[characterId] === 1 && !state.characters.active) {
+          state.characters.active = characterId;
+        }
+
+        await saveProfile();
+        updateInventoryView();
+
+        console.log('🎟️ 쿠폰으로 생성된 캐릭터:', characterId, def);
+        return {
+          type: 'character',
+          characterId,
+          definition: def,
+          message: `${tier} ${def.name} 캐릭터를 획득했습니다!`
+        };
+      }
+
+      async function generateGuaranteedPet(petId) {
+        const def = getPetDefinition(petId);
+
+        if (!def) {
+          console.error('존재하지 않는 펫:', petId);
+          return null;
+        }
+
+        // 펫 수량 증가
+        if (!state.pets.owned[petId]) {
+          state.pets.owned[petId] = 0;
+        }
+        state.pets.owned[petId] += 1;
+
+        // 첫 번째 획득한 펫이라면 활성 펫으로 설정
+        if (state.pets.owned[petId] === 1 && !state.pets.active) {
+          state.pets.active = petId;
+        }
+
+        await saveProfile();
+        updateInventoryView();
+
+        console.log('🎟️ 쿠폰으로 생성된 펫:', petId, def);
+        return {
+          type: 'pet',
+          petId,
+          definition: def,
+          message: `${def.name} 펫을 획득했습니다!`
+        };
       }
 
       function ensureAdminRareState(force){
@@ -2377,6 +2777,24 @@ ${parts.join(', ')}`;
         return { multipliers, probs };
       }
 
+      function createEmptyGearShardState(){
+        return TIERS.reduce((acc, tier)=>{
+          acc[tier] = 0;
+          return acc;
+        }, {});
+      }
+
+      function sanitizeGearShardState(raw){
+        const base = createEmptyGearShardState();
+        if(!raw || typeof raw !== 'object'){
+          return base;
+        }
+        TIERS.forEach((tier)=>{
+          base[tier] = clampNumber(raw[tier], 0, Number.MAX_SAFE_INTEGER, base[tier]);
+        });
+        return base;
+      }
+
       // RNG
       function djb2(str){ let h=5381; for(let i=0;i<str.length;i++){ h=((h<<5)+h) + str.charCodeAt(i); h|=0; } return h>>>0; }
       function mulberry32(a){ return function(){ let t = a += 0x6D2B79F5; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
@@ -2418,11 +2836,23 @@ ${parts.join(', ')}`;
         return base;
       }
       function refreshInventoryCache(){ state.inventory = [...Object.values(state.equip).filter(Boolean), ...PART_KEYS.map(function(part){ return state.spares[part]; }).filter(Boolean)]; }
+      function ensureGearShards(){ if(!state.gearShards || typeof state.gearShards !== 'object'){ state.gearShards = createEmptyGearShardState(); } return state.gearShards; }
+      function availableGearShards(tier){ const shards = ensureGearShards(); return clampNumber(shards[tier], 0, Number.MAX_SAFE_INTEGER, 0); }
+      function addGearShards(tier, amount){ if(!TIERS.includes(tier)) return availableGearShards(tier); const shards = ensureGearShards(); const inc = Math.max(0, Math.floor(amount||0)); if(inc <= 0) return availableGearShards(tier); shards[tier] = clampNumber((shards[tier] || 0) + inc, 0, Number.MAX_SAFE_INTEGER, shards[tier] || 0); markProfileDirty(); updateGearShardView(); return shards[tier]; }
+      function spendGearShards(tier, amount){ if(!TIERS.includes(tier)) return false; const shards = ensureGearShards(); const need = Math.max(0, Math.floor(amount||0)); if(need <= 0) return true; if((shards[tier] || 0) < need) return false; shards[tier] -= need; markProfileDirty(); updateGearShardView(); return true; }
+      function gearEnhancementState(item){ if(!item) return { level: 0, progress: 0, next: getEnhancementRequirement(0), multiplier: 1, isMax: false }; const level = clampEnhancementLevel(item.lvl || 0); const progress = clampEnhancementProgress(level, item.progress || 0); const next = getEnhancementRequirement(level); return { level, progress, next, multiplier: getEnhancementMultiplier(level), isMax: !next }; }
+      function formatGearEnhancementLabel(item){ const stateInfo = gearEnhancementState(item); if(stateInfo.isMax){ return 'MAX'; } const nextCost = stateInfo.next?.cost || 0; return `Lv.${stateInfo.level} (${stateInfo.progress}/${nextCost})`; }
+      function applyGearShardsToItem(item, shards){ if(!item) return { consumed: 0, levelBefore: 0, levelAfter: 0, progressBefore: 0, progressAfter: 0, isMax: true }; let remaining = Math.max(0, Math.floor(shards||0)); if(remaining <= 0) return { consumed: 0, levelBefore: clampEnhancementLevel(item.lvl||0), levelAfter: clampEnhancementLevel(item.lvl||0), progressBefore: clampEnhancementProgress(item.lvl||0, item.progress||0), progressAfter: clampEnhancementProgress(item.lvl||0, item.progress||0), isMax: !getEnhancementRequirement(item.lvl||0) }; let level = clampEnhancementLevel(item.lvl || 0); let progress = clampEnhancementProgress(level, item.progress || 0); const levelBefore = level; const progressBefore = progress; let consumed = 0; while(remaining > 0 && level < MAX_ENHANCEMENT_LEVEL){ const req = getEnhancementRequirement(level); if(!req) break; const needed = req.cost - progress; const use = Math.min(remaining, needed); if(use <= 0) break; progress += use; remaining -= use; consumed += use; if(progress >= req.cost){ level += 1; progress = 0; } }
+        item.lvl = level;
+        item.progress = progress;
+        return { consumed, levelBefore, levelAfter: level, progressBefore, progressAfter: progress, isMax: !getEnhancementRequirement(level) };
+      }
       function spareItem(part){ return state.spares[part] || null; }
-      function storeSpare(item, force){ if(!item || !item.part) return; const part = item.part; const existing = spareItem(part); if(force){ state.spares[part] = item; refreshInventoryCache(); markProfileDirty(); return; }
+      function storeSpare(item, force){ if(!item || !item.part) return; const part = item.part; const existing = spareItem(part); if(force){ if(existing){ addGearShards(existing.tier, 1); } state.spares[part] = item; refreshInventoryCache(); markProfileDirty(); return; }
         if(!existing){ state.spares[part] = item; refreshInventoryCache(); markProfileDirty(); return; }
         const better = effectiveStat(item) > effectiveStat(existing) || (effectiveStat(item) === effectiveStat(existing) && TIER_RANK[item.tier] > TIER_RANK[existing.tier]);
-        if(better){ state.spares[part] = item; refreshInventoryCache(); markProfileDirty(); }
+        if(better){ addGearShards(existing.tier, 1); state.spares[part] = item; refreshInventoryCache(); markProfileDirty(); }
+        else { addGearShards(item.tier, 1); }
       }
       function normalizedDifficultyAdjustments(){ const sanitized = sanitizeDifficultyAdjustments(state.config?.difficultyAdjustments); if(!state.config.difficultyAdjustments || state.config.difficultyAdjustments.easy !== sanitized.easy || state.config.difficultyAdjustments.hard !== sanitized.hard){ state.config.difficultyAdjustments = sanitized; } return sanitized; }
       const DIFFICULTY_PREVIEW_PRESETS = Object.freeze([
@@ -2938,13 +3368,10 @@ ${parts.join(', ')}`;
         if(els.lvlDec){ els.lvlDec.addEventListener('click', ()=>{ const cur = parseInt(els.monLevel?.value||'1',10); setLevel(cur-1); }); }
         if(els.lvlInc){ els.lvlInc.addEventListener('click', ()=>{ const cur = parseInt(els.monLevel?.value||'1',10); setLevel(cur+1); }); }
         if(els.fightBtn){ els.fightBtn.addEventListener('click', doFight); }
-        addListener(els.forgeTarget, 'change', updateForgeInfo);
+        addListener(els.forgeTarget, 'change', ()=>{ updateForgeInfo(); updateGearShardView(); });
         // forge
         addListener(els.forgeOnce, 'click', doForgeOnce);
         if(els.forgeAuto){ els.forgeAuto.addEventListener('click', toggleAutoForge); }
-        addListener(els.forgeTableBody, 'input', onForgeTableInput);
-        addListener(els.forgeReset, 'click', ()=>{ state.enhance = defaultEnhance(); buildForgeTable(); updateInventoryView(); markProfileDirty(); });
-        addListener(els.forgeProtectUse, 'change', ()=>{ state.forge.protectEnabled = els.forgeProtectUse.checked; updateForgeControlsView(); updateForgeInfo(); markProfileDirty(); });
         addListener(els.logoutBtn, 'click', logout);
         addListener(els.toAdmin, 'click', ()=>{
           if(!isAdmin()) {
@@ -3236,6 +3663,8 @@ ${parts.join(', ')}`;
         if(els.adminRestoreFromMirror) els.adminRestoreFromMirror.addEventListener('click', restoreFromMirror);
         if(els.adminRestoreFromSnapshot) els.adminRestoreFromSnapshot.addEventListener('click', restoreFromSnapshot);
         if(els.adminGrantSubmit) els.adminGrantSubmit.addEventListener('click', handleAdminGrantResources);
+        if(els.adminCouponSubmit) els.adminCouponSubmit.addEventListener('click', handleAdminCouponGrant);
+        if(els.adminCouponUserSelect) els.adminCouponUserSelect.addEventListener('change', updateAdminCouponUserStats);
         if(els.applyGlobalPreset) els.applyGlobalPreset.addEventListener('click', ()=>{ const id = els.globalPresetSelect?.value || ''; if(!id){ clearSelectedPreset(); setPresetMsg('프리셋 선택을 해제했습니다.', 'warn'); return; } const preset = findGlobalPreset(id); if(!preset){ setPresetMsg('선택한 프리셋을 찾을 수 없습니다.', 'error'); return; } applyGlobalPresetForUser(preset); });
         if(els.applyPersonalPreset) els.applyPersonalPreset.addEventListener('click', ()=>{ const id = els.personalPresetSelect?.value || ''; if(!id){ clearSelectedPreset(); setPresetMsg('프리셋 선택을 해제했습니다.', 'warn'); return; } const preset = findPersonalPreset(id); if(!preset){ setPresetMsg('선택한 프리셋을 찾을 수 없습니다.', 'error'); return; } applyPersonalPresetForUser(preset); });
         if(els.savePersonalPreset) els.savePersonalPreset.addEventListener('click', handleSavePersonalPreset);
@@ -4912,11 +5341,11 @@ ${parts.join(', ')}`;
           if(els.characterLegendaryClose) els.characterLegendaryClose.onclick = cleanup;
         });
       }
-      function createGearCard(partDef, item, opts){ opts = opts || {}; const card = document.createElement('div'); card.className = 'gear-card'; if(opts.kind) card.classList.add(opts.kind); card.dataset.slot = partDef.key; const icon = iconForPart(partDef.key); if(item){ card.dataset.tier = item.tier||'NONE'; const isEquip = opts.kind === 'gear-equip'; const isSpare = opts.kind === 'gear-spare'; if(isEquip) card.classList.add('equipped'); const label = `${item.tier}${item.lvl ? ' +' + item.lvl : ''}`; const statLabel = item.type === 'atk' ? 'ATK' : 'DEF'; const eff = formatNum(effectiveStat(item)); const base = formatNum(item.base||0); card.innerHTML = `
+      function createGearCard(partDef, item, opts){ opts = opts || {}; const card = document.createElement('div'); card.className = 'gear-card'; if(opts.kind) card.classList.add(opts.kind); card.dataset.slot = partDef.key; const icon = iconForPart(partDef.key); if(item){ card.dataset.tier = item.tier||'NONE'; const isEquip = opts.kind === 'gear-equip'; const isSpare = opts.kind === 'gear-spare'; if(isEquip) card.classList.add('equipped'); const enhState = gearEnhancementState(item); const levelLabel = enhState.isMax ? ' MAX' : (enhState.level ? ' +' + enhState.level : ''); const label = `${item.tier}${levelLabel}`; const statLabel = item.type === 'atk' ? 'ATK' : 'DEF'; const eff = formatNum(effectiveStat(item)); const base = formatNum(item.base||0); const progressLabel = enhState.isMax ? 'MAX 강화' : `Lv.${enhState.level} ${enhState.progress}/${enhState.next?.cost || 0}`; card.innerHTML = `
           <div class="gear-slot">${partDef.name}</div>
           <div class="gear-icon">${icon}</div>
           <div class="gear-tier-text">${label}</div>
-          <div class="gear-stat">${statLabel} ${eff}<span class="gear-sub">기본 ${base}</span></div>`; if(opts.button){ const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'equip-btn'; btn.dataset.part = partDef.key; btn.textContent = opts.button; card.appendChild(btn); } if(isEquip){ const badge = document.createElement('div'); badge.className = 'gear-badge'; badge.textContent = '장착중'; card.appendChild(badge); } else if(isSpare){ const badge = document.createElement('div'); badge.className = 'gear-badge spare'; badge.textContent = '예비'; card.appendChild(badge); } }
+          <div class="gear-stat">${statLabel} ${eff}<span class="gear-sub">기본 ${base} · ${progressLabel}</span></div>`; if(opts.button){ const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'equip-btn'; btn.dataset.part = partDef.key; btn.textContent = opts.button; card.appendChild(btn); } if(isEquip){ const badge = document.createElement('div'); badge.className = 'gear-badge'; badge.textContent = '장착중'; card.appendChild(badge); } else if(isSpare){ const badge = document.createElement('div'); badge.className = 'gear-badge spare'; badge.textContent = '예비'; card.appendChild(badge); } }
         else {
           card.dataset.tier = 'NONE'; card.classList.add('empty'); const emptyText = opts.emptyText || '장비 없음'; card.innerHTML = `
           <div class="gear-slot">${partDef.name}</div>
@@ -5532,10 +5961,21 @@ ${parts.join(', ')}`;
         if(!state.characters.owned || typeof state.characters.owned !== 'object'){
           state.characters.owned = createDefaultCharacterState().owned;
         }
+        if(!state.characters.enhancements || typeof state.characters.enhancements !== 'object'){
+          const defaults = createDefaultCharacterState().enhancements;
+          state.characters.enhancements = {};
+          CHARACTER_IDS.forEach((id)=>{
+            state.characters.enhancements[id] = { level: defaults[id]?.level || 0, progress: defaults[id]?.progress || 0 };
+          });
+        }
         CHARACTER_IDS.forEach((id) => {
           if(typeof state.characters.owned[id] !== 'number' || !isFinite(state.characters.owned[id])){
             state.characters.owned[id] = 0;
           }
+          const enh = state.characters.enhancements[id];
+          const level = clampEnhancementLevel(enh?.level || 0);
+          const progress = clampEnhancementProgress(level, enh?.progress || 0);
+          state.characters.enhancements[id] = { level, progress };
         });
         if(DEFAULT_CHARACTER_ID && (state.characters.owned[DEFAULT_CHARACTER_ID] || 0) <= 0){
           state.characters.owned[DEFAULT_CHARACTER_ID] = 1;
@@ -5545,6 +5985,31 @@ ${parts.join(', ')}`;
         }
         return state.characters;
       }
+
+      function characterEnhancementState(characterId){
+        const chars = ensureCharacterState();
+        if(!CHARACTER_IDS.includes(characterId)){
+          return { level: 0, progress: 0, next: getEnhancementRequirement(0), multiplier: 1, isMax: false, available: 0 };
+        }
+        const entry = chars.enhancements?.[characterId] || { level: 0, progress: 0 };
+        const level = clampEnhancementLevel(entry.level || 0);
+        const progress = clampEnhancementProgress(level, entry.progress || 0);
+        const next = getEnhancementRequirement(level);
+        const available = Math.max(0, (chars.owned?.[characterId] || 0) - 1);
+        return {
+          level,
+          progress,
+          next,
+          multiplier: getEnhancementMultiplier(level),
+          isMax: !next,
+          available
+        };
+      }
+      function consumeCharacterDuplicates(characterId, amount){ const chars = ensureCharacterState(); if(!CHARACTER_IDS.includes(characterId)) return { consumed: 0, levelBefore: 0, levelAfter: 0, progressBefore: 0, progressAfter: 0, isMax: true }; amount = Math.max(0, Math.floor(amount||0)); const owned = chars.owned?.[characterId] || 0; const available = Math.max(0, owned - 1); if(amount <= 0 || available <= 0){ const entry = chars.enhancements?.[characterId] || { level:0, progress:0 }; const level = clampEnhancementLevel(entry.level || 0); const prog = clampEnhancementProgress(level, entry.progress || 0); return { consumed: 0, levelBefore: level, levelAfter: level, progressBefore: prog, progressAfter: prog, isMax: !getEnhancementRequirement(level) }; } const entry = chars.enhancements?.[characterId] || { level:0, progress:0 }; let level = clampEnhancementLevel(entry.level || 0); let progress = clampEnhancementProgress(level, entry.progress || 0); let remaining = Math.min(amount, available); let consumed = 0; const levelBefore = level; const progressBefore = progress; while(remaining > 0 && level < MAX_ENHANCEMENT_LEVEL){ const req = getEnhancementRequirement(level); if(!req) break; const need = req.cost - progress; const use = Math.min(remaining, need); if(use <= 0) break; progress += use; remaining -= use; consumed += use; if(progress >= req.cost){ level += 1; progress = 0; } }
+        if(consumed > 0){ chars.owned[characterId] = Math.max(1, chars.owned[characterId] - consumed); chars.enhancements[characterId] = { level, progress }; }
+        return { consumed, levelBefore, levelAfter: level, progressBefore, progressAfter: progress, isMax: !getEnhancementRequirement(level) };
+      }
+      function performCharacterEnhancement(characterId, opts){ opts = opts||{}; const consumeAll = !!opts.consumeAll; const info = characterEnhancementState(characterId); if(info.isMax){ return { status:'max' }; } const available = info.available; if(available <= 0){ return { status:'no-dup' }; } const targetUse = info.next ? Math.max(1, info.next.cost - info.progress) : 0; const use = consumeAll ? available : Math.min(available, targetUse); const result = consumeCharacterDuplicates(characterId, use); if(result.consumed <= 0){ return { status:'no-dup' }; } const chars = ensureCharacterState(); if(userProfile){ userProfile.characters = chars; } markProfileDirty(); updateCharacterList(); updateInventoryView(); return { status: result.levelAfter > result.levelBefore ? 'level-up' : 'progress', result }; }
 
       function getActiveCharacterId(){
         const chars = ensureCharacterState();
@@ -5558,10 +6023,21 @@ ${parts.join(', ')}`;
 
       function getActiveCharacterBaseStats(){
         const def = getActiveCharacterDefinition();
-        if(def && def.stats){
-          return { ...def.stats };
+        const base = def && def.stats ? { ...def.stats } : { atk: 0, def: 0, hp: 5000, critRate: 5, critDmg: 150, dodge: 5, speed: 100 };
+        const chars = ensureCharacterState();
+        const activeId = getActiveCharacterId();
+        const enh = chars.enhancements?.[activeId] || null;
+        const level = enh ? clampEnhancementLevel(enh.level || 0) : 0;
+        const multiplier = getEnhancementMultiplier(level);
+        if(multiplier !== 1){
+          Object.keys(base).forEach((key)=>{
+            const value = base[key];
+            if(typeof value === 'number' && isFinite(value)){
+              base[key] = value * multiplier;
+            }
+          });
         }
-        return { atk: 0, def: 0, hp: 5000, critRate: 5, critDmg: 150, dodge: 5, speed: 100 };
+        return base;
       }
 
       function characterTierAtLeast(tier, minTier){
@@ -5607,14 +6083,12 @@ ${parts.join(', ')}`;
       function buildCharacterDetailContent(def){ if(!def){ return '<p class="muted">캐릭터를 선택하면 상세 정보를 확인할 수 있습니다.</p>'; }
         const characters = ensureCharacterState();
         const owned = characters.owned?.[def.id] || 0;
-        const stats = def.stats || {};
-        const balance = ensureCharacterBalanceConfig()[def.classId] || DEFAULT_CHARACTER_BALANCE[def.classId] || DEFAULT_CHARACTER_BALANCE.warrior;
-        const statMultipliers = balance.stats || {};
-        const statOffsets = balance.offsets || {};
+        const enh = characterEnhancementState(def.id);
         const showDetails = isAdmin();
         const skillInfo = getCharacterSkillInfo(def);
         const ultimateDef = getCharacterUltimateDefinition(def);
         const ultimateInfo = getCharacterUltimateInfo(ultimateDef);
+
         const statEntries = [
           { key:'hp', label:'HP', type:'flat' },
           { key:'atk', label:'공격력', type:'flat' },
@@ -5624,13 +6098,62 @@ ${parts.join(', ')}`;
           { key:'dodge', label:'회피율', type:'percent' },
           { key:'speed', label:'속도', type:'flat' }
         ];
-        const statHtml = statEntries.map(({ key, label, type }) => {
-          const baseValue = stats[key] || 0;
-          const multiplier = Number(statMultipliers[key] ?? 1);
-          const offset = Number(statOffsets[key] ?? 0);
-          const text = formatSnapshotCell(baseValue, multiplier, offset, type, showDetails);
+
+        // 실제 전투 스탯 계산 (강화 전 - characterEnhancementLevel = 0)
+        const baseStats = def.stats || {};
+        const activePetId = ensurePetState().active || null;
+        const balanceConfig = ensureCharacterBalanceConfig();
+
+        const baseResult = deriveCombatStats(
+          state.equip || {},
+          state.enhance,
+          baseStats,
+          activePetId,
+          {
+            balance: balanceConfig,
+            characterId: def.id,
+            classId: def.classId,
+            character: def,
+            characterEnhancementLevel: 0
+          }
+        );
+
+        // 실제 전투 스탯 계산 (강화 후 - 현재 강화 레벨)
+        const enhancedResult = deriveCombatStats(
+          state.equip || {},
+          state.enhance,
+          baseStats,
+          activePetId,
+          {
+            balance: balanceConfig,
+            characterId: def.id,
+            classId: def.classId,
+            character: def,
+            characterEnhancementLevel: enh.level
+          }
+        );
+
+        const balancedStats = baseResult.stats;
+        const enhancedStats = enhancedResult.stats;
+        const enhancementMultiplier = enh.multiplier || 1;
+
+        // 기본 스탯 HTML (강화 전)
+        const baseStatHtml = statEntries.map(({ key, label, type }) => {
+          const value = balancedStats[key] || 0;
+          const text = type === 'percent' ? `${Math.round(value)}%` : formatNum(Math.round(value));
           return `<span><span class="stat-label">${label}</span>${text}</span>`;
         }).join('');
+
+        // 강화된 스탯 HTML (강화 후)
+        const enhancedStatHtml = enh.level > 0 ? statEntries.map(({ key, label, type }) => {
+          const baseValue = balancedStats[key] || 0;
+          const enhancedValue = enhancedStats[key] || 0;
+          const text = type === 'percent' ? `${Math.round(enhancedValue)}%` : formatNum(Math.round(enhancedValue));
+          const increase = enhancedValue - baseValue;
+          const increaseText = increase > 0 ? ` (+${type === 'percent' ? Math.round(increase) + '%' : formatNum(Math.round(increase))})` : '';
+          return `<span><span class="stat-label">${label}</span><strong>${text}</strong>${increaseText}</span>`;
+        }).join('') : '';
+
         const ownedText = isAdmin() ? '∞' : formatNum(owned);
         const sections = [];
         sections.push(`
@@ -5642,12 +6165,36 @@ ${parts.join(', ')}`;
             <div class="detail-owned muted">보유: <b>${ownedText}</b></div>
           </div>
         `);
+
+        // 강화 정보 섹션
+        if(enh.level > 0){
+          sections.push(`
+            <div class="detail-section enhancement-info">
+              <h4>강화 정보</h4>
+              <div class="muted">
+                <p>강화 레벨: <strong>Lv.${enh.level}</strong> (배율: <strong>${formatMultiplier(enhancementMultiplier)}×</strong>)</p>
+                <p>진행도: ${enh.progress}/${enh.next?.cost || 0} · 사용 가능 중복: ${formatNum(enh.available)}</p>
+                ${enh.isMax ? '<p class="success"><strong>✨ 최대 강화 달성!</strong></p>' : ''}
+              </div>
+            </div>
+          `);
+        }
+
         sections.push(`
           <div class="detail-section">
-            <h4>기본 능력치</h4>
-            <div class="stat-list">${statHtml}</div>
+            <h4>기본 능력치 ${enh.level > 0 ? '(강화 전)' : ''}</h4>
+            <div class="stat-list">${baseStatHtml}</div>
           </div>
         `);
+
+        if(enh.level > 0){
+          sections.push(`
+            <div class="detail-section">
+              <h4>강화된 능력치 <span class="success">(Lv.${enh.level})</span></h4>
+              <div class="stat-list enhanced">${enhancedStatHtml}</div>
+            </div>
+          `);
+        }
         if(skillInfo){
           sections.push(`
             <div class="detail-section">
@@ -6496,6 +7043,8 @@ ${parts.join(', ')}`;
 
         state.items = sanitizeItems(userProfile.items);
         userProfile.items = state.items;
+        state.gearShards = sanitizeGearShardState(userProfile.gearShards);
+        userProfile.gearShards = state.gearShards;
         state.pets = sanitizePetState(userProfile.pets);
         userProfile.pets = state.pets;
         state.characters = sanitizeCharacterState(userProfile.characters);
@@ -6665,6 +7214,7 @@ ${parts.join(', ')}`;
           equip: sanitizeEquipMap(state.equip),
           spares: sanitizeEquipMap(state.spares),
           items: sanitizeItems(state.items),
+          gearShards: sanitizeGearShardState(state.gearShards),
           pets: sanitizePetState(state.pets),
           characters: sanitizeCharacterState(state.characters),
           quests: sanitizeQuestState(state.quests),
@@ -6881,6 +7431,7 @@ ${parts.join(', ')}`;
         const showDetails = isAdmin();
         let appended = 0;
         entries.forEach(({ id, def, count, isActive }) => {
+          const enh = characterEnhancementState(id);
           const card = document.createElement('div');
           card.className = 'pet-card character-card';
           card.dataset.character = id;
@@ -6904,16 +7455,73 @@ ${parts.join(', ')}`;
           countEl.className = 'count';
           countEl.textContent = `보유: ${formatNum(count)}`;
           textWrap.appendChild(countEl);
-          const stats = def.stats || {};
-          const balance = balanceConfig[def.classId] || DEFAULT_CHARACTER_BALANCE[def.classId] || DEFAULT_CHARACTER_BALANCE.warrior;
-          const statMultipliers = balance.stats || {};
-          const statOffsets = balance.offsets || {};
+          const dupEl = document.createElement('div');
+          dupEl.className = 'muted small';
+          dupEl.textContent = enh.isMax ? '강화: MAX' : `강화 Lv.${enh.level} (${enh.progress}/${enh.next?.cost || 0}) · 중복 ${formatNum(enh.available)}`;
+          textWrap.appendChild(dupEl);
+          // 실제 전투 스탯 계산 (캐릭터+장비+펫)
+          const baseStats = def.stats || {};
+          const activePetId = ensurePetState().active || null;
+
+          // 강화 전 스탯
+          const baseResult = deriveCombatStats(
+            state.equip || {},
+            state.enhance,
+            baseStats,
+            activePetId,
+            {
+              balance: balanceConfig,
+              characterId: id,
+              classId: def.classId,
+              character: def,
+              characterEnhancementLevel: 0
+            }
+          );
+
+          // 강화 후 스탯
+          const enhancedResult = deriveCombatStats(
+            state.equip || {},
+            state.enhance,
+            baseStats,
+            activePetId,
+            {
+              balance: balanceConfig,
+              characterId: id,
+              classId: def.classId,
+              character: def,
+              characterEnhancementLevel: enh.level
+            }
+          );
+
+          const hpBalanced = baseResult.stats.hp;
+          const atkBalanced = baseResult.stats.atk;
+          const defBalanced = baseResult.stats.def;
+          const hpEnhanced = enhancedResult.stats.hp;
+          const atkEnhanced = enhancedResult.stats.atk;
+          const defEnhanced = enhancedResult.stats.def;
+          const enhancementMultiplier = enh.multiplier || 1;
+
           const statsEl = document.createElement('div');
           statsEl.className = 'stats muted small';
-          const hpText = formatSnapshotCell(stats.hp || 0, Number(statMultipliers.hp ?? 1), Number(statOffsets.hp ?? 0), 'flat', showDetails);
-          const atkText = formatSnapshotCell(stats.atk || 0, Number(statMultipliers.atk ?? 1), Number(statOffsets.atk ?? 0), 'flat', showDetails);
-          const defText = formatSnapshotCell(stats.def || 0, Number(statMultipliers.def ?? 1), Number(statOffsets.def ?? 0), 'flat', showDetails);
+
+          // 강화 전/후 스탯 표시
+          const hpText = enh.level > 0
+            ? `${formatNum(hpBalanced)} → <strong>${formatNum(hpEnhanced)}</strong>`
+            : formatNum(hpBalanced);
+          const atkText = enh.level > 0
+            ? `${formatNum(atkBalanced)} → <strong>${formatNum(atkEnhanced)}</strong>`
+            : formatNum(atkBalanced);
+          const defText = enh.level > 0
+            ? `${formatNum(defBalanced)} → <strong>${formatNum(defEnhanced)}</strong>`
+            : formatNum(defBalanced);
+
           statsEl.innerHTML = `HP ${hpText} · ATK ${atkText} · DEF ${defText}`;
+          if(enh.level > 0){
+            const enhMultEl = document.createElement('div');
+            enhMultEl.className = 'enhancement-mult muted small';
+            enhMultEl.innerHTML = `<strong>강화 배율: ${formatMultiplier(enhancementMultiplier)}×</strong>`;
+            textWrap.appendChild(enhMultEl);
+          }
           textWrap.appendChild(statsEl);
           const skillDesc = getCharacterSkillDescription(def);
           if(skillDesc){
@@ -6926,19 +7534,55 @@ ${parts.join(', ')}`;
           card.appendChild(infoWrap);
           const actions = document.createElement('div');
           actions.className = 'actions';
-          const btn = document.createElement('button');
-          btn.type = 'button';
-          btn.dataset.character = id;
-          btn.textContent = isActive ? '사용중' : '선택';
+          const selectBtn = document.createElement('button');
+          selectBtn.type = 'button';
+          selectBtn.dataset.character = id;
+          selectBtn.textContent = isActive ? '사용중' : '선택';
           if(isActive){
-            btn.disabled = true;
+            selectBtn.disabled = true;
           } else {
-            btn.addEventListener('click', (event) => {
+            selectBtn.addEventListener('click', (event) => {
               event.stopPropagation();
               setActiveCharacter(id);
             });
           }
-          actions.appendChild(btn);
+          actions.appendChild(selectBtn);
+          if(enh.available > 0){
+            const enhanceBtn = document.createElement('button');
+            enhanceBtn.type = 'button';
+            enhanceBtn.className = 'character-enhance';
+            enhanceBtn.textContent = '강화';
+            enhanceBtn.addEventListener('click', (event)=>{
+              event.stopPropagation();
+              const res = performCharacterEnhancement(id, { consumeAll: false });
+              if(res.status === 'no-dup'){
+                setForgeMsg('캐릭터 중복이 부족합니다.', 'warn');
+              } else if(res.status === 'level-up'){
+                setForgeMsg(`캐릭터 강화! Lv.${res.result.levelBefore} → Lv.${res.result.levelAfter}`, 'ok');
+              } else if(res.status === 'progress'){
+                const next = characterEnhancementState(id);
+                setForgeMsg(`캐릭터 강화 진행: Lv.${next.level} (${next.progress}/${next.next?.cost || 0})`, 'ok');
+              }
+            });
+            actions.appendChild(enhanceBtn);
+            const enhanceAllBtn = document.createElement('button');
+            enhanceAllBtn.type = 'button';
+            enhanceAllBtn.className = 'character-enhance-all';
+            enhanceAllBtn.textContent = '모두 사용';
+            enhanceAllBtn.addEventListener('click', (event)=>{
+              event.stopPropagation();
+              const res = performCharacterEnhancement(id, { consumeAll: true });
+              if(res.status === 'no-dup'){
+                setForgeMsg('캐릭터 중복이 부족합니다.', 'warn');
+              } else if(res.status === 'level-up'){
+                setForgeMsg(`캐릭터 강화! Lv.${res.result.levelBefore} → Lv.${res.result.levelAfter}`, 'ok');
+              } else if(res.status === 'progress'){
+                const next = characterEnhancementState(id);
+                setForgeMsg(`캐릭터 강화 진행: Lv.${next.level} (${next.progress}/${next.next?.cost || 0})`, 'ok');
+              }
+            });
+            actions.appendChild(enhanceAllBtn);
+          }
           card.appendChild(actions);
           card.addEventListener('click', (event) => {
             if(event.target instanceof HTMLElement && event.target.closest('button')) return;
@@ -7182,7 +7826,7 @@ ${parts.join(', ')}`;
       function itemLabel(it){ const name = getPartNameByKey(it.part) || ''; return `${name} ${it.tier}`; }
       function removeRandomItems(k, rng){ const pool = []; PART_DEFS.forEach(function(p){ const eq = state.equip[p.key]; if(eq) pool.push({type:'equip', part:p.key, item:eq}); const spare = state.spares[p.key]; if(spare) pool.push({type:'spare', part:p.key, item:spare}); }); if(pool.length===0) return []; shuffle(pool, rng); const selected = pool.slice(0, Math.min(k, pool.length)); selected.forEach(function(entry){ if(entry.type==='equip'){ state.equip[entry.part] = null; } else if(entry.type==='spare'){ state.spares[entry.part] = null; } }); updateInventoryView(); markProfileDirty(); return selected.map(function(e){ return e.item; }); }
       function applyEquipAndInventory(item, opts){ opts = opts || {}; const decision = opts.decision || null; const part = item.part; const current = state.equip[part];
-        if(decision === 'discard'){ markProfileDirty(); return; }
+        if(decision === 'discard'){ addGearShards(item.tier, 1); markProfileDirty(); updateGearShardView(); return; }
         if(decision === 'equip'){
           if(current){ storeSpare(current); }
           state.equip[part] = item;
@@ -7224,116 +7868,55 @@ ${parts.join(', ')}`;
         markProfileDirty();
       }
 
-      function setAutoForgeRunning(running){ running = !!running; state.forge.autoRunning = running; if(els.forgeAuto){ els.forgeAuto.textContent = running ? '자동 강화 중지' : '자동 강화'; els.forgeAuto.classList.toggle('forge-auto-running', running); }
+      function setAutoForgeRunning(running){ running = !!running; state.forge.autoRunning = running; if(els.forgeAuto){ els.forgeAuto.textContent = running ? '진행 중...' : '모두 사용'; els.forgeAuto.classList.toggle('forge-auto-running', running); els.forgeAuto.disabled = running; }
         if(els.forgeOnce){ els.forgeOnce.disabled = running; } }
 
-      function buildForgeTable(){ const tb = els.forgeTableBody; if(!tb) return; tb.innerHTML=''; const admin = isAdmin(); for(let lv=1; lv<=20; lv++){ const tr = document.createElement('tr'); const mul = state.enhance.multipliers[lv]||1; const p = state.enhance.probs[lv]||0; tr.innerHTML = `<td>${lv}</td><td><input data-kind="mul" data-lv="${lv}" type="text" step="any" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" value="${mul}" style="width:100px" ${admin?'':'disabled'} /></td><td><input data-kind="p" data-lv="${lv}" type="text" step="any" min="0" max="1" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" value="${p}" style="width:100px" ${admin?'':'disabled'} /></td>`; tb.appendChild(tr); } }
+      function buildForgeTable(){ const tb = els.forgeTableBody; if(tb){ tb.innerHTML=''; }
+        updateGearShardView(); }
 
-      function onForgeTableInput(e){ const t = e.target; if(!(t instanceof HTMLInputElement)) return; if(!isAdmin()) return; const lv = parseInt(t.dataset.lv||'0',10); if(!lv) return; let changed = false; if(t.dataset.kind==='mul'){ let v = parseFloat(t.value); if(!(v>0)) v = 1; state.enhance.multipliers[lv] = v; t.value = String(v); changed = true; } else if(t.dataset.kind==='p'){ let v = parseFloat(t.value); if(!(v>=0)) v = 0; if(v>1) v = 1; state.enhance.probs[lv] = v; t.value = String(v); changed = true; } if(!changed) return; updateForgeInfo(); markProfileDirty(); if(isAdmin()){ persistGlobalConfig(state.config, { activePresetId: state.presets.activeGlobalId, activePresetName: state.presets.activeGlobalName }); } }
+      function buildForgeTargetOptions(){ const sel = els.forgeTarget; if(!sel) return; const options = []; PART_DEFS.forEach(function(p){ const it = state.equip[p.key]; if(it){ options.push({ value: `equip:${p.key}`, label: `장착-${p.name} ${it.tier} ${formatNum(effectiveStat(it))} (${formatGearEnhancementLabel(it)})` }); } }); PART_DEFS.forEach(function(p){ const spare = state.spares[p.key]; if(spare){ options.push({ value: `spare:${p.key}`, label: `예비-${p.name} ${spare.tier} ${formatNum(effectiveStat(spare))} (${formatGearEnhancementLabel(spare)})` }); } }); const prev = sel.value; sel.innerHTML = ''; if(options.length === 0){ const opt = document.createElement('option'); opt.value = ''; opt.textContent = '강화할 장비 없음'; sel.appendChild(opt); sel.value = ''; updateForgeInfo(); updateForgeControlsView(); return; } options.forEach(function(entry){ const opt = document.createElement('option'); opt.value = entry.value; opt.textContent = entry.label; sel.appendChild(opt); }); sel.value = options.some((entry)=> entry.value === prev) ? prev : options[0].value; updateForgeInfo(); updateForgeControlsView(); }
 
-      function currentForgeItem(){ const v = els.forgeTarget?.value||''; if(!v) return null; const [kind, id] = v.split(':'); if(kind==='equip'){ return state.equip[id] || null; } if(kind==='spare'){ return state.spares[id] || null; } return null; }
+      function currentForgeItem(){ const sel = els.forgeTarget; if(!sel || !sel.value) return null; const [type, part] = sel.value.split(':'); if(type === 'equip') return state.equip[part] || null; if(type === 'spare') return state.spares[part] || null; return null; }
 
-      function buildForgeTargetOptions(){ const sel = els.forgeTarget; if(!sel) return; const options = []; PART_DEFS.forEach(function(p){ const it = state.equip[p.key]; if(it) options.push({key:`equip:${p.key}`, label:`장착-${p.name} ${it.tier} ${formatNum(effectiveStat(it))} (Lv.${it.lvl||0})`, ref: it}); }); PART_DEFS.forEach(function(p){ const spare = state.spares[p.key]; if(spare) options.push({key:`spare:${p.key}`, label:`예비-${p.name} ${spare.tier} ${formatNum(effectiveStat(spare))} (Lv.${spare.lvl||0})`, ref: spare}); }); const prev = sel.value; sel.innerHTML=''; options.forEach(function(o){ const opt = document.createElement('option'); opt.value = o.key; opt.textContent = o.label; sel.appendChild(opt); }); if(options.length===0){ const opt = document.createElement('option'); opt.value=''; opt.textContent='보강할 장비 없음'; sel.appendChild(opt); } sel.value = options.some(function(o){ return o.key===prev; }) ? prev : sel.value; if(options.length===0 && state.forge.autoRunning){ setAutoForgeRunning(false); } updateForgeInfo(); updateForgeControlsView(); updateItemCountsView(); }
+      function updateForgeInfo(){ const item = currentForgeItem(); if(!item){ if(els.forgeLv) els.forgeLv.textContent = '-'; if(els.forgeMul) els.forgeMul.textContent = '1.00×'; if(els.forgeStageMul) els.forgeStageMul.textContent = '-'; if(els.forgePreview) els.forgePreview.textContent = '-'; if(els.forgeP) els.forgeP.textContent = '-'; if(els.forgeCostEnh) els.forgeCostEnh.textContent = '0'; if(els.forgeCostProtect) els.forgeCostProtect.textContent = '0'; if(els.forgeCostGold) els.forgeCostGold.textContent = '0'; return; } const info = gearEnhancementState(item); const currentMul = getEnhancementMultiplier(info.level); const available = availableGearShards(item.tier); if(els.forgeLv) els.forgeLv.textContent = String(info.level); if(els.forgeMul) els.forgeMul.textContent = formatMultiplier(currentMul) + '×'; if(els.forgeStageMul){ if(info.next){ const nextMul = getEnhancementMultiplier(info.next.level); els.forgeStageMul.textContent = formatMultiplier(nextMul) + '×'; } else { els.forgeStageMul.textContent = 'MAX'; } } if(els.forgePreview){ const previewStat = Math.floor(item.base * currentMul); els.forgePreview.textContent = formatNum(previewStat); } if(els.forgeP){ if(info.next){ const needed = Math.max(0, info.next.cost - info.progress); els.forgeP.textContent = `${info.progress}/${info.next.cost} (${needed}개 필요)`; } else { els.forgeP.textContent = 'MAX'; } } if(els.forgeCostEnh) els.forgeCostEnh.textContent = formatNum(available); if(els.forgeCostProtect){ if(info.next){ els.forgeCostProtect.textContent = formatNum(info.next.cost); } else { els.forgeCostProtect.textContent = '-'; } } if(els.forgeCostGold){ if(info.next){ const needed = Math.max(0, info.next.cost - info.progress); const remaining = Math.max(0, available - needed); els.forgeCostGold.textContent = formatNum(remaining); } else { els.forgeCostGold.textContent = formatNum(available); } } }
 
-      function updateForgeControlsView(){ if(!els.forgeProtectUse) return; els.forgeProtectUse.checked = !!state.forge.protectEnabled; }
+      function updateForgeControlsView(){ const item = currentForgeItem(); const hasItem = !!item; if(els.forgeOnce) els.forgeOnce.disabled = !hasItem; if(els.forgeAuto) els.forgeAuto.disabled = !hasItem; }
 
-      function updateForgeInfo(){ const it = currentForgeItem(); if(!it){ if(els.forgeLv) els.forgeLv.textContent = '0'; if(els.forgeMul) els.forgeMul.textContent = '1.00×'; if(els.forgeP) els.forgeP.textContent = '-'; if(els.forgePreview) els.forgePreview.textContent = '-'; if(els.forgeStageMul) els.forgeStageMul.textContent = '1.00×'; if(els.forgeNextMul) els.forgeNextMul.textContent = '-'; if(els.forgeCostEnh) els.forgeCostEnh.textContent = '0'; if(els.forgeCostProtect) els.forgeCostProtect.textContent = '0'; if(els.forgeCostGold) els.forgeCostGold.textContent = '0'; if(els.forgeOnce) els.forgeOnce.disabled = true; return; }
-        const lv = it.lvl || 0;
-        const next = Math.min(20, lv + 1);
-        const currentMul = state.enhance.multipliers[lv] || 1;
-        const nextMul = (next <= 20 ? state.enhance.multipliers[next] : currentMul);
-        const successProb = lv >= 20 ? null : (state.enhance.probs[next] || 0);
-        const stepMultiplier = lv >= 20 ? null : (nextMul / (currentMul || 1));
-        const nextTotalMul = lv >= 20 ? null : nextMul;
-        const enhanceCost = ENHANCE_TICKET_COST[next] || 0;
-        const protectCost = ENHANCE_PROTECT_COST[next] || 0;
-        const expectedGold = ENHANCE_EXPECTED_GOLD[next] || 0;
-
-        if(els.forgeLv) els.forgeLv.textContent = String(lv);
-        if(els.forgeMul) els.forgeMul.textContent = `${currentMul.toFixed(2)}×`;
-        if(els.forgeP) els.forgeP.textContent = successProb === null ? '-' : `${(successProb * 100).toFixed(2)}%`;
-        if(els.forgeStageMul) els.forgeStageMul.textContent = stepMultiplier === null ? '-' : `${stepMultiplier.toFixed(stepMultiplier >= 10 ? 1 : 3)}×`;
-        if(els.forgeNextMul) els.forgeNextMul.textContent = nextTotalMul === null ? '-' : `${nextTotalMul.toFixed(nextTotalMul >= 10 ? 1 : 3)}×`;
-        if(els.forgeCostEnh) els.forgeCostEnh.textContent = lv >= 20 ? '-' : String(enhanceCost);
-        if(els.forgeCostProtect) els.forgeCostProtect.textContent = lv >= 20 ? '-' : String(protectCost);
-        if(els.forgeCostGold) els.forgeCostGold.textContent = lv >= 20 ? '-' : formatNum(expectedGold);
-
-        const cur = effectiveStat(it);
-        const after = Math.floor((it.base || 0) * nextMul);
-        if(els.forgePreview){
-          if(lv >= 20){ els.forgePreview.textContent = '-'; }
-          else {
-            const curMulText = currentMul.toFixed(currentMul >= 10 ? 1 : 3);
-            const nextMulText = nextMul.toFixed(nextMul >= 10 ? 1 : 3);
-            els.forgePreview.textContent = `${formatNum(cur)} (×${curMulText}) → ${formatNum(after)} (×${nextMulText})`;
-          }
-        }
-        if(els.forgeOnce) els.forgeOnce.disabled = lv >= 20;
-      }
+      function updateGearShardView(){ if(!els.gearShardSummary) return; const shards = ensureGearShards(); const summary = TIERS.map((tier)=> `${tier}: ${formatNum(shards[tier] || 0)}`).join(' · '); els.gearShardSummary.textContent = summary; }
 
       function setForgeMsg(text, tone){ if(!els.forgeMsg) return; els.forgeMsg.textContent = text || ''; els.forgeMsg.classList.remove('msg-ok','msg-warn','msg-danger','muted'); if(tone==='ok'){ els.forgeMsg.classList.add('msg-ok'); } else if(tone==='warn'){ els.forgeMsg.classList.add('msg-warn'); } else if(tone==='danger'){ els.forgeMsg.classList.add('msg-danger'); } else { els.forgeMsg.classList.add('muted'); } }
 
-      function showForgeEffect(kind){ const eff = els.forgeEffect; if(!eff) return; const textMap = { success:'강화 성공!', fail:'강화 실패...', protected:'보호권 발동!', destroyed:'장비 파괴...' }; const existing = getForgeEffectTimerRef(); if(existing){ clearTimeout(existing); setForgeEffectTimerRef(null); } eff.classList.remove('success','fail','protected','destroyed','show');
+      function showForgeEffect(kind){ const eff = els.forgeEffect; if(!eff) return; const textMap = { success:'강화 완료!', progress:'강화 진행', fail:'재료 부족' }; const existing = getForgeEffectTimerRef(); if(existing){ clearTimeout(existing); setForgeEffectTimerRef(null); } eff.classList.remove('success','progress','fail','show');
         void eff.offsetWidth;
         if(kind === 'success'){ eff.classList.add('success'); }
-        else if(kind === 'protected'){ eff.classList.add('protected'); }
-        else if(kind === 'destroyed'){ eff.classList.add('destroyed'); }
+        else if(kind === 'progress'){ eff.classList.add('progress'); }
         else { eff.classList.add('fail'); }
         eff.textContent = textMap[kind] || '';
         eff.classList.add('show');
-        const timer = setTimeout(()=>{ if(!els.forgeEffect) return; eff.classList.remove('show','success','fail','protected','destroyed'); eff.textContent=''; setForgeEffectTimerRef(null); }, 720);
+        const timer = setTimeout(()=>{ if(!els.forgeEffect) return; eff.classList.remove('show','success','progress','fail'); eff.textContent=''; setForgeEffectTimerRef(null); }, 720);
         setForgeEffectTimerRef(timer);
       }
 
-      function performForgeAttempt(opts){ opts = opts||{}; const auto = !!opts.auto; const item = currentForgeItem(); if(!item){ if(!auto) setForgeMsg('강화할 장비를 선택하세요.', 'warn'); showForgeEffect('fail'); return {status:'no-item'}; } const lv = item.lvl || 0; if(lv >= 20){ if(!auto) setForgeMsg('이미 최대 강화 레벨입니다.', 'warn'); showForgeEffect('fail'); return {status:'max'}; } const admin = isAdmin(); const nextLv = lv + 1; const enhanceCost = ENHANCE_TICKET_COST[nextLv] || 0; const protectCost = ENHANCE_PROTECT_COST[nextLv] || 0; const expectedGold = ENHANCE_EXPECTED_GOLD[nextLv] || 0; const wantProtect = !!state.forge.protectEnabled;
-        if(!auto){ const willProtect = wantProtect && (admin || (state.items.protect || 0) >= protectCost); if(!willProtect){ const ok = confirm('강화 실패 시 장비가 파괴될 수 있습니다. 계속하시겠습니까?'); if(!ok){ setForgeMsg('강화를 취소했습니다.', 'warn'); return {status:'cancelled'}; } } }
-        if(!admin && (state.items.enhance || 0) < enhanceCost){ if(!auto) setForgeMsg('강화권이 부족합니다.', 'warn'); showForgeEffect('fail'); return {status:'no-enhance'}; }
-        if(wantProtect && !admin && protectCost > 0 && (state.items.protect || 0) < protectCost){ if(!auto) setForgeMsg('보호권이 부족합니다.', 'warn'); showForgeEffect('fail'); return {status:'no-protect'}; }
-        if(!admin && (state.gold || 0) < expectedGold){ if(!auto) setForgeMsg('골드가 부족합니다.', 'warn'); showForgeEffect('fail'); return {status:'no-gold'}; }
-        if(!admin){ state.items.enhance = Math.max(0, (state.items.enhance || 0) - enhanceCost); state.gold = Math.max(0, (state.gold || 0) - expectedGold); }
-        updateItemCountsView();
-        const commitConsumables = ()=>{ if(admin) return; const itemsSnapshot = sanitizeItems(state.items); state.items = itemsSnapshot; if(userProfile) userProfile.items = itemsSnapshot; if(state.profile) state.profile.items = { ...itemsSnapshot }; saveGold({ extraUpdates: { items: itemsSnapshot } }); updateItemCountsView(); };
-        const successProb = state.enhance.probs[nextLv] || 0; const rng = getRng(); const success = rng() < successProb;
-        if(success){ item.lvl = nextLv; updateInventoryView(); updateForgeInfo(); setForgeMsg(`강화 성공! Lv.${lv} → Lv.${nextLv}`, 'ok'); showForgeEffect('success'); commitConsumables(); markProfileDirty(); return {status:'success', level: nextLv}; }
-        const protectActive = wantProtect && (admin || (protectCost > 0 ? (state.items.protect || 0) >= protectCost : true));
-        if(protectActive){ if(!admin && protectCost > 0){ state.items.protect = Math.max(0, (state.items.protect || 0) - protectCost); updateItemCountsView(); }
-          updateInventoryView(); updateForgeInfo(); setForgeMsg('강화 실패! 보호권이 소모되어 장비가 보호되었습니다.', 'warn'); showForgeEffect('protected'); commitConsumables(); markProfileDirty(); return {status:'protected'}; }
-        removeItem(item);
+      function performForgeAttempt(opts){ opts = opts||{}; const consumeAll = !!opts.consumeAll; const item = currentForgeItem(); if(!item){ setForgeMsg('강화할 장비를 선택하세요.', 'warn'); showForgeEffect('fail'); return {status:'no-item'}; }
+        const info = gearEnhancementState(item);
+        if(info.isMax){ setForgeMsg('이미 최대 강화 단계입니다.', 'warn'); showForgeEffect('fail'); return {status:'max'}; }
+        const available = availableGearShards(item.tier);
+        if(available <= 0){ setForgeMsg('사용 가능한 중복이 없습니다.', 'warn'); showForgeEffect('fail'); return {status:'no-shards'}; }
+        const needed = info.next ? Math.max(1, info.next.cost - info.progress) : 0;
+        const use = consumeAll ? available : Math.min(available, needed);
+        const result = applyGearShardsToItem(item, use);
+        if(result.consumed <= 0){ setForgeMsg('사용할 중복이 없습니다.', 'warn'); showForgeEffect('fail'); return {status:'no-shards'}; }
+        spendGearShards(item.tier, result.consumed);
         updateInventoryView();
         updateForgeInfo();
-        setForgeMsg('강화 실패! 장비가 파괴되었습니다.', 'danger');
-        showForgeEffect('destroyed');
-        commitConsumables();
         markProfileDirty();
-        return {status:'destroyed'};
-      }
+        if(result.levelAfter > result.levelBefore){ setForgeMsg(`강화 성공! Lv.${result.levelBefore} → Lv.${result.levelAfter} (중복 ${result.consumed}개 사용)`, 'ok'); showForgeEffect('success'); return {status:'level-up', consumed: result.consumed}; }
+        setForgeMsg(`강화 진행: Lv.${result.levelAfter} (${result.progressAfter}/${info.next?.cost || 0})`, 'ok'); showForgeEffect('progress'); return {status:'progress', consumed: result.consumed}; }
 
-      async function runAutoForgeLoop(){ setAutoForgeRunning(true); setForgeMsg('자동 강화를 시작합니다.', 'ok'); try {
-          while(state.forge.autoRunning){ const target = currentForgeItem(); if(!target){ setForgeMsg('강화할 장비가 없습니다. 자동 강화를 종료합니다.', 'warn'); break; }
-            const lv = target.lvl || 0;
-            if(lv >= 20){ setForgeMsg('이미 최대 강화 레벨입니다.', 'warn'); break; }
-            const nextLv = lv + 1;
-            const enhanceCost = ENHANCE_TICKET_COST[nextLv] || 0;
-            const protectCost = ENHANCE_PROTECT_COST[nextLv] || 0;
-            const expectedGold = ENHANCE_EXPECTED_GOLD[nextLv] || 0;
-            if(!isAdmin()){
-              if((state.items.enhance || 0) < enhanceCost){ setForgeMsg('강화권이 부족합니다. 자동 강화를 종료합니다.', 'warn'); break; }
-              if(state.forge.protectEnabled && protectCost > 0 && (state.items.protect || 0) < protectCost){ setForgeMsg('보호권이 부족합니다. 자동 강화를 종료합니다.', 'warn'); break; }
-              if((state.gold || 0) < expectedGold){ setForgeMsg('골드가 부족합니다. 자동 강화를 종료합니다.', 'warn'); break; }
-            }
-            const result = performForgeAttempt({auto:true});
-            if(result.status === 'no-item' || result.status === 'no-enhance' || result.status === 'no-protect' || result.status === 'no-gold' || result.status === 'max' || result.status === 'destroyed'){ break; }
-            if(!state.forge.autoRunning) break;
-            await maybeDelay(600);
-          }
-        } finally { setAutoForgeRunning(false); }
-      }
 
-      function toggleAutoForge(){ if(state.forge.autoRunning){ setAutoForgeRunning(false); setForgeMsg('자동 강화를 중지합니다.', 'warn'); return; }
-        if(!currentForgeItem()){ setForgeMsg('강화할 장비를 선택하세요.', 'warn'); showForgeEffect('fail'); return; }
-        runAutoForgeLoop(); }
-      function doForgeOnce(){ if(state.forge.autoRunning){ setForgeMsg('자동 강화 중에는 수동 강화를 사용할 수 없습니다.', 'warn'); return; }
-        performForgeAttempt({auto:false}); }
+
+      function toggleAutoForge(){ performForgeAttempt({ consumeAll: true }); }
+      function doForgeOnce(){ performForgeAttempt({ consumeAll: false }); }
 
       function removeItem(item){ if(!item) return; PART_KEYS.forEach(function(part){ if(state.equip[part] === item){ state.equip[part] = null; } if(state.spares[part] === item){ state.spares[part] = null; } }); refreshInventoryCache(); buildForgeTargetOptions(); markProfileDirty(); }
       // 강화 관련 로직은 forge 모듈로 이동했습니다.
@@ -8311,6 +8894,10 @@ ${parts.join(', ')}`;
           console.warn('수집된 데이터가 없습니다. 슬롯머신 상태:', slotMachineState);
         }
       }
+
+      // Expose functions globally for mailbox.js
+      window.processCouponRedemption = processCouponRedemption;
+      window.applyEquipAndInventory = applyEquipAndInventory;
 
       // Global error popups for visibility
       (function(){

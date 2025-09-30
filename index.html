@@ -12,7 +12,7 @@
       <header class="top">
         <div class="title-section">
           <h1>가챠 시뮬레이터</h1>
-          <div class="version">v0.71b</div>
+          <div class="version">v0.8</div>
         </div>
         <div class="hint">확률 직접 지정 · 1/10/100회 · 통계/시드/보장</div>
         <span class="sep"></span>
@@ -555,6 +555,46 @@
               <label>펫 뽑기권<input id="adminGrantPetTickets" type="number" step="1" value="0" /></label>
               <button id="adminGrantSubmit">지급</button>
             </div>
+
+            <!-- 쿠폰 지급 기능 -->
+            <div class="row" style="margin-top:16px">
+              <h4 class="muted" style="margin:0">SSS+ 당첨 쿠폰 지급</h4>
+            </div>
+            <div class="row preset-admin-row">
+              <label>대상<select id="adminCouponUserSelect">
+                <option value="">사용자 선택</option>
+                <option value="__ALL_USERS__">전체 사용자</option>
+              </select></label>
+              <span class="muted small" id="adminCouponUserStats"></span>
+            </div>
+            <div class="row preset-admin-row">
+              <label>쿠폰 종류<select id="adminCouponType">
+                <option value="">쿠폰 선택</option>
+                <optgroup label="SSS+ 장비 쿠폰">
+                  <option value="gear:head">🪖🎟️ SSS+ 투구 쿠폰</option>
+                  <option value="gear:body">🛡️🎟️ SSS+ 갑옷 쿠폰</option>
+                  <option value="gear:main">⚔️🎟️ SSS+ 주무기 쿠폰</option>
+                  <option value="gear:off">🗡️🎟️ SSS+ 보조무기 쿠폰</option>
+                  <option value="gear:boots">🥾🎟️ SSS+ 신발 쿠폰</option>
+                </optgroup>
+                <optgroup label="SSS+ 캐릭터 쿠폰">
+                  <option value="character:warrior">⚔️🎟️ SSS+ 전사 쿠폰</option>
+                  <option value="character:mage">🔮🎟️ SSS+ 마법사 쿠폰</option>
+                  <option value="character:archer">🏹🎟️ SSS+ 궁수 쿠폰</option>
+                  <option value="character:rogue">🗡️🎟️ SSS+ 도적 쿠폰</option>
+                  <option value="character:goddess">✨🎟️ SSS+ 여신 쿠폰</option>
+                </optgroup>
+                <optgroup label="펫 쿠폰">
+                  <option value="pet:pet_ant">🐜🎟️ 사막 개미 수호병 쿠폰</option>
+                  <option value="pet:pet_deer">🦌🎟️ 신속 사슴 쿠폰</option>
+                  <option value="pet:pet_goat">🐐🎟️ 암석 산양 쿠폰</option>
+                  <option value="pet:pet_tiger">🐅🎟️ 백호 쿠폰</option>
+                  <option value="pet:pet_horang">🐯🎟️ 호랭찡 쿠폰</option>
+                </optgroup>
+              </select></label>
+              <button id="adminCouponSubmit">쿠폰 지급</button>
+            </div>
+            <div id="adminCouponMsg" class="muted small" aria-live="polite"></div>
           </div>
         </section>
 
@@ -850,38 +890,28 @@
         </section>
 
         <section class="panel" data-section="equipment">
-          <h2>대장간</h2>
+          <h2>합성 강화</h2>
           <div class="row">
             <label>강화 대상<select id="forgeTarget"></select></label>
-            <span class="muted">현재 Lv.<b id="forgeLv">0</b></span>
-            <span class="muted">배율 <b id="forgeMul">1.00×</b></span>
-            <span class="muted">단계 배율 <b id="forgeStageMul">1.00×</b></span>
-            <span class="muted">다음 누적 배율 <b id="forgeNextMul">-</b></span>
-            <span class="muted">다음 성공률 <b id="forgeP">-</b></span>
-            <span class="muted">강화 후 미리보기 <b id="forgePreview">-</b></span>
-            <button id="forgeOnce">+1 강화</button>
-            <button id="forgeAuto">자동 강화</button>
+            <span class="muted">강화 단계 <b id="forgeLv">-</b></span>
+            <span class="muted">누적 배율 <b id="forgeMul">1.00×</b></span>
+            <span class="muted">다음 배율 <b id="forgeStageMul">-</b></span>
+            <span class="muted">강화 후 능력치 <b id="forgePreview">-</b></span>
+            <button id="forgeOnce">중복 사용</button>
+            <button id="forgeAuto">모두 사용</button>
           </div>
           <div class="row">
-            <label><input id="forgeProtectUse" type="checkbox" /> 보호권 사용</label>
-            <span class="muted">보호권: <b id="protectCount">0</b></span>
-            <span class="muted">강화권: <b id="enhanceCount">0</b></span>
-            <span class="muted">필요 강화권 <b id="forgeCostEnh">0</b></span>
-            <span class="muted">필요 보호권 <b id="forgeCostProtect">0</b></span>
-            <span class="muted">기대 골드 소모 <b id="forgeCostGold">0</b> G</span>
+            <span class="muted">필요 중복 <b id="forgeP">-</b></span>
+            <span class="muted">보유 중복 <b id="forgeCostEnh">0</b></span>
+            <span class="muted">단계 요구량 <b id="forgeCostProtect">0</b></span>
+            <span class="muted">사용 후 남음 <b id="forgeCostGold">0</b></span>
+          </div>
+          <div class="row">
+            <span class="muted">장비 중복 요약</span>
+            <span class="muted"><b id="gearShardSummary">SSS+:0 · SS+:0 · S+:0 · S:0 · A:0 · B:0 · C:0 · D:0</b></span>
           </div>
           <div id="forgeEffect" class="forge-effect" aria-hidden="true"></div>
           <div id="forgeMsg" class="forge-msg muted" aria-live="polite"></div>
-          <details id="forgeEdit">
-            <summary class="muted">강화 수치/확률 편집</summary>
-            <div class="row">
-              <button id="forgeReset">초기값 복원</button>
-            </div>
-            <table class="forge-table" aria-label="강화 설정">
-              <thead><tr><th>Lv</th><th>배율</th><th>성공률(0~1)</th></tr></thead>
-              <tbody id="forgeTableBody"></tbody>
-            </table>
-          </details>
         </section>
 
         <section class="panel" id="battleRedirectPanel" data-section="gacha">

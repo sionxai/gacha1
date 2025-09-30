@@ -22,6 +22,23 @@ export function sanitizeMailRewards(rewards) {
   return map;
 }
 
+export function sanitizeMailCoupon(coupon) {
+  if (!coupon || typeof coupon !== 'object') return null;
+
+  const type = coupon.type;
+  const targetKey = coupon.targetKey;
+
+  // 유효한 쿠폰 타입인지 확인
+  if (!['gear', 'character', 'pet'].includes(type)) return null;
+  if (!targetKey || typeof targetKey !== 'string') return null;
+
+  return {
+    type,
+    targetKey: targetKey.trim(),
+    tier: coupon.tier || 'SSS+' // 기본값은 SSS+
+  };
+}
+
 export function buildMailEntry(id, payload = {}) {
   const now = Date.now();
   const createdAt = typeof payload.createdAt === 'number' ? payload.createdAt : now;
@@ -61,12 +78,19 @@ export function buildMailEntry(id, payload = {}) {
     });
   }
 
+  // 쿠폰 처리
+  let coupon = null;
+  if (safePayload.coupon) {
+    coupon = sanitizeMailCoupon(safePayload.coupon);
+  }
+
   return {
     id: id || 'unknown',
     title: safePayload.title || '우편',
     message: safePayload.message || '',
     rewards: rewards,
     metadata: metadata,
+    coupon: coupon,
     type: safePayload.type || 'general',
     createdAt,
     expiresAt,
@@ -188,6 +212,13 @@ export async function enqueueMail(uid, payload = {}) {
           minimalData[`meta_${key}`] = safeMetadata[key];
         }
       });
+    }
+
+    // 쿠폰 데이터 추가
+    if (entry.coupon) {
+      minimalData.coupon_type = entry.coupon.type;
+      minimalData.coupon_targetKey = entry.coupon.targetKey;
+      minimalData.coupon_tier = entry.coupon.tier;
     }
 
     console.log('📧 [enqueueMail] mailbox에 저장할 데이터:', JSON.stringify(minimalData, null, 2));

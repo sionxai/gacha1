@@ -38,7 +38,8 @@ import {
   getCharacterDefinition,
   getCharacterImageVariants,
   CHARACTER_ULTIMATE_DEFS,
-  sanitizeUserSettings
+  sanitizeUserSettings,
+  getEnhancementMultiplier
 } from './combat-core.js';
 import {
   QUEST_LOOKUP,
@@ -566,6 +567,16 @@ function getActiveCharacterBaseStats() {
     return { ...def.stats };
   }
   return { atk: 0, def: 0, hp: 5000, critRate: 5, critDmg: 150, dodge: 5, speed: 100 };
+}
+
+function getActiveCharacterEnhancementLevel() {
+  const characters = ensureCharacterState();
+  const charId = getActiveCharacterId();
+  const enhancements = characters.enhancements || {};
+  const enhancement = enhancements[charId] || { level: 0, progress: 0 };
+  return typeof enhancement.level === 'number' && isFinite(enhancement.level)
+    ? Math.max(0, Math.floor(enhancement.level))
+    : 0;
 }
 
 function updatePlayerCharacterSprite() {
@@ -2454,6 +2465,7 @@ function computePlayerStats() {
   const petDef = activePetDefinition();
   const charDef = getActiveCharacterDefinition();
   const baseStats = charDef?.stats ? { ...charDef.stats } : getActiveCharacterBaseStats();
+  const characterEnhancementLevel = getActiveCharacterEnhancementLevel();
   const derived = derivePlayerStats(
     state.equip || {},
     state.enhance,
@@ -2463,7 +2475,8 @@ function computePlayerStats() {
       balance: state.config?.characterBalance,
       characterId: charDef?.id || getActiveCharacterId(),
       classId: charDef?.classId,
-      character: charDef || null
+      character: charDef || null,
+      characterEnhancementLevel
     }
   );
   const { stats, equipment, skillMultiplier } = derived;

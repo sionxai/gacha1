@@ -317,7 +317,10 @@
       .character-skill-detail .skill-summary { display:block; }
       .character-skill-detail .skill-detail { display:block; margin-top:6px; color:#d3d9ff; }
       .character-card .class { font-size:12px; color: var(--muted); }
+      .character-card .actions { display:flex; flex-direction:column; gap:6px; }
       .character-card .actions button { min-width:64px; }
+      .character-card .actions button.character-enhance,
+      .character-card .actions button.character-enhance-all { min-width:72px; }
       .character-detail-hint { margin-top:8px; }
       .character-modal { position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:3800; }
       .character-modal.show { display:flex; }

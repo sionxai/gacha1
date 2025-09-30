@@ -391,6 +391,12 @@ async function claimMail(mail) {
   if (!currentUser || !mail) return;
   try {
     console.log('🎁 [claimMail] 시작 - 메일 데이터:', mail);
+    console.log('🔍 [claimMail] 즉시 쿠폰 검사:', {
+      hasCoupon: !!mail.coupon,
+      coupon_type: mail.coupon_type,
+      coupon_targetKey: mail.coupon_targetKey,
+      allMailKeys: Object.keys(mail)
+    });
     setMailboxStatus('우편을 수령하는 중입니다...', null);
 
     const userRef = ref(db, `users/${currentUser.uid}`);
@@ -449,6 +455,148 @@ async function claimMail(mail) {
       }));
     } else {
       console.warn('⚠️ [claimMail] 업데이트할 데이터가 없습니다');
+    }
+
+    // 🎁 직접 아이템 지급 처리 - rewards에 직접 아이템이 포함된 경우
+    if (mail.rewards && (mail.rewards.directGear || mail.rewards.directCharacter || mail.rewards.directPet)) {
+      try {
+        console.log('🎁 [claimMail] 직접 아이템 지급 처리 시작:', mail.rewards);
+
+        if (mail.rewards.directGear) {
+          // 장비 직접 지급
+          const gearData = mail.rewards.directGear;
+          const item = gearData.item;
+
+          console.log('⚔️ [claimMail] 장비 지급:', item);
+
+          if (window.applyEquipAndInventory) {
+            // app.js의 applyEquipAndInventory 함수 호출
+            window.applyEquipAndInventory(item);
+            console.log('✅ [claimMail] 장비가 인벤토리에 추가됨');
+          }
+        }
+
+        if (mail.rewards.directCharacter) {
+          // 캐릭터 직접 지급
+          const charData = mail.rewards.directCharacter;
+
+          console.log('👤 [claimMail] 캐릭터 지급:', charData);
+
+          // 사용자 데이터 다시 가져오기
+          const userSnapshot = await get(userRef);
+          if (userSnapshot.exists()) {
+            const userData = userSnapshot.val() || {};
+            const characters = userData.characters || { owned: {}, active: null };
+
+            // 캐릭터 수량 증가
+            const characterId = charData.characterId;
+            if (!characters.owned[characterId]) {
+              characters.owned[characterId] = 0;
+            }
+            characters.owned[characterId] += 1;
+
+            // 첫 번째 획득한 캐릭터라면 대표 캐릭터로 설정
+            if (characters.owned[characterId] === 1 && !characters.active) {
+              characters.active = characterId;
+            }
+
+            await update(userRef, { characters });
+            console.log('✅ [claimMail] 캐릭터가 추가됨');
+          }
+        }
+
+        if (mail.rewards.directPet) {
+          // 펫 직접 지급
+          const petData = mail.rewards.directPet;
+
+          console.log('🐾 [claimMail] 펫 지급:', petData);
+
+          // 사용자 데이터 다시 가져오기
+          const userSnapshot = await get(userRef);
+          if (userSnapshot.exists()) {
+            const userData = userSnapshot.val() || {};
+            const pets = userData.pets || { owned: {}, active: null };
+
+            // 펫 수량 증가
+            const petId = petData.petId;
+            if (!pets.owned[petId]) {
+              pets.owned[petId] = 0;
+            }
+            pets.owned[petId] += 1;
+
+            // 첫 번째 획득한 펫이라면 활성 펫으로 설정
+            if (pets.owned[petId] === 1 && !pets.active) {
+              pets.active = petId;
+            }
+
+            await update(userRef, { pets });
+            console.log('✅ [claimMail] 펫이 추가됨');
+          }
+        }
+
+        // UI 업데이트 이벤트 발생
+        window.dispatchEvent(new window.CustomEvent('directItemGranted', {
+          detail: {
+            gear: mail.rewards.directGear,
+            character: mail.rewards.directCharacter,
+            pet: mail.rewards.directPet
+          }
+        }));
+
+        setMailboxStatus('아이템이 성공적으로 지급되었습니다!', 'ok');
+      } catch (error) {
+        console.error('❌ [claimMail] 직접 아이템 지급 중 오류:', error);
+        setMailboxStatus(`아이템 지급 중 오류가 발생했습니다: ${error.message}`, 'danger');
+      }
+    }
+
+    // 🎟️ 쿠폰 처리 - 쿠폰 우편인 경우 100% 확률 뽑기 실행 (기존 시스템 - 사용 안함)
+    if (mail.coupon || (mail.coupon_type && mail.coupon_targetKey)) {
+      try {
+        let coupon = mail.coupon;
+
+        // 호환성을 위해 개별 필드에서 쿠폰 객체 구성
+        if (!coupon && mail.coupon_type && mail.coupon_targetKey) {
+          coupon = {
+            type: mail.coupon_type,
+            targetKey: mail.coupon_targetKey,
+            tier: mail.coupon_tier || 'SSS+'
+          };
+        }
+
+        console.log('🎟️ [claimMail] 쿠폰 처리 시작:', coupon);
+
+        // app.js에서 노출된 쿠폰 처리 함수 호출
+        if (window.processCouponRedemption) {
+          const result = await window.processCouponRedemption(coupon);
+
+          if (result) {
+            console.log('✅ [claimMail] 쿠폰 처리 성공:', result);
+
+            // 쿠폰으로 획득한 아이템 메시지 표시
+            const successMessage = result.message || '쿠폰이 성공적으로 사용되었습니다!';
+            setMailboxStatus(successMessage, 'ok');
+
+            // UI 업데이트를 위한 이벤트 발생
+            window.dispatchEvent(new window.CustomEvent('couponRedeemed', {
+              detail: {
+                coupon,
+                result,
+                type: result.type
+              }
+            }));
+          } else {
+            console.error('❌ [claimMail] 쿠폰 처리 실패 - 결과 없음');
+            setMailboxStatus('쿠폰 처리에 실패했습니다.', 'danger');
+          }
+        } else {
+          console.error('❌ [claimMail] processCouponRedemption 함수를 찾을 수 없습니다');
+          setMailboxStatus('쿠폰 처리 시스템을 찾을 수 없습니다.', 'danger');
+        }
+      } catch (couponError) {
+        console.error('❌ [claimMail] 쿠폰 처리 중 오류:', couponError);
+        setMailboxStatus(`쿠폰 처리 중 오류가 발생했습니다: ${couponError.message}`, 'danger');
+      }
     }
 
     // Use the source path stored in the mail object, fallback to default if not available
@@ -520,6 +668,70 @@ function renderMailboxList() {
       if (rewards.petTickets) parts.push(`펫 뽑기권 ${rewards.petTickets.toLocaleString('ko-KR')}`);
       rewardEl.textContent = parts.join(' · ');
       item.appendChild(rewardEl);
+    }
+
+    // 🎟️ 쿠폰 표시 - 쿠폰 우편인 경우 쿠폰 정보 표시
+    if (mail.coupon || (mail.coupon_type && mail.coupon_targetKey)) {
+      let coupon = mail.coupon;
+
+      // 호환성을 위해 개별 필드에서 쿠폰 객체 구성
+      if (!coupon && mail.coupon_type && mail.coupon_targetKey) {
+        coupon = {
+          type: mail.coupon_type,
+          targetKey: mail.coupon_targetKey,
+          tier: mail.coupon_tier || 'SSS+'
+        };
+      }
+
+      const couponEl = document.createElement('div');
+      couponEl.className = 'mailbox-coupon';
+
+      let couponText = '';
+      let couponIcon = '🎟️';
+
+      if (coupon.type === 'gear') {
+        const gearNames = {
+          head: '투구', body: '갑옷', main: '주무기', off: '보조무기', boots: '신발'
+        };
+        const gearIcons = {
+          head: '🪖', body: '🛡️', main: '⚔️', off: '🗡️', boots: '🥾'
+        };
+        couponIcon = gearIcons[coupon.targetKey] || '⚔️';
+        couponText = `${coupon.tier} ${gearNames[coupon.targetKey] || coupon.targetKey} 쿠폰`;
+      } else if (coupon.type === 'character') {
+        const classNames = {
+          warrior: '전사', mage: '마법사', archer: '궁수', rogue: '도적', goddess: '여신'
+        };
+        const classIcons = {
+          warrior: '⚔️', mage: '🔮', archer: '🏹', rogue: '🗡️', goddess: '✨'
+        };
+        couponIcon = classIcons[coupon.targetKey] || '⚔️';
+        couponText = `${coupon.tier} ${classNames[coupon.targetKey] || coupon.targetKey} 쿠폰`;
+      } else if (coupon.type === 'pet') {
+        const petNames = {
+          pet_ant: '사막 개미 수호병', pet_deer: '신속 사슴', pet_goat: '암석 산양',
+          pet_tiger: '백호', pet_horang: '호랭찡'
+        };
+        couponIcon = '🐾';
+        couponText = `${petNames[coupon.targetKey] || coupon.targetKey} 쿠폰`;
+      }
+
+      couponEl.innerHTML = `<span class="coupon-icon">${couponIcon}</span> ${couponText}`;
+      couponEl.style.cssText = `
+        background: linear-gradient(135deg, #ffd700, #ffed4a);
+        color: #1a1a1a;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-weight: 600;
+        margin: 8px 0;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        border: 2px solid #ffaa00;
+        box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+      `;
+
+      item.appendChild(couponEl);
     }
 
     const actions = document.createElement('div');

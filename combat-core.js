@@ -149,18 +149,80 @@ export function defaultEnhance() {
   return { multipliers, probs };
 }
 
+export const ENHANCEMENT_RULES = Object.freeze([
+  { level: 1, cost: 1, bonus: 0.10 },
+  { level: 2, cost: 1, bonus: 0.10 },
+  { level: 3, cost: 1, bonus: 0.10 },
+  { level: 4, cost: 3, bonus: 0.30 },
+  { level: 5, cost: 3, bonus: 0.30 },
+  { level: 6, cost: 3, bonus: 0.30 },
+  { level: 7, cost: 5, bonus: 0.50, label: 'MAX' }
+]);
+
+export const MAX_ENHANCEMENT_LEVEL = ENHANCEMENT_RULES[ENHANCEMENT_RULES.length - 1].level;
+
+const enhancementRuleMap = new Map();
+const enhancementCumulativeBonus = [];
+let enhancementBonusTotal = 0;
+
+ENHANCEMENT_RULES.forEach((rule) => {
+  enhancementRuleMap.set(rule.level, rule);
+  enhancementBonusTotal += rule.bonus;
+  enhancementCumulativeBonus[rule.level] = enhancementBonusTotal;
+});
+
+export function clampEnhancementLevel(level) {
+  const numeric = typeof level === 'number' && isFinite(level) ? level : 0;
+  if (numeric <= 0) return 0;
+  if (numeric >= MAX_ENHANCEMENT_LEVEL) return MAX_ENHANCEMENT_LEVEL;
+  return Math.floor(numeric);
+}
+
+export function getEnhancementRule(level) {
+  return enhancementRuleMap.get(level) || null;
+}
+
+export function getEnhancementRequirement(currentLevel) {
+  const nextLevel = clampEnhancementLevel(currentLevel) + 1;
+  return getEnhancementRule(nextLevel);
+}
+
+export function getEnhancementMultiplier(level) {
+  const clamped = clampEnhancementLevel(level);
+  if (clamped <= 0) {
+    return 1;
+  }
+  const bonus = enhancementCumulativeBonus[clamped] || 0;
+  return 1 + bonus;
+}
+
+export function clampEnhancementProgress(currentLevel, progress) {
+  if (!(typeof progress === 'number' && isFinite(progress))) {
+    return 0;
+  }
+  const requirement = getEnhancementRequirement(currentLevel);
+  if (!requirement) {
+    return 0;
+  }
+  const max = Math.max(0, requirement.cost - 1);
+  return clampNumber(progress, 0, max, 0);
+}
+
 export function sanitizeEquipItem(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const tier = TIERS.includes(raw.tier) ? raw.tier : null;
   const part = PART_KEYS.includes(raw.part) ? raw.part : null;
   if (!tier || !part) return null;
   const type = raw.type === 'def' ? 'def' : 'atk';
+  const lvl = clampEnhancementLevel(raw.lvl ?? raw.enhanceLevel ?? 0);
+  const progressRaw = raw.progress ?? raw.enhanceProgress ?? 0;
   return {
     id: clampNumber(raw.id, 0, Number.MAX_SAFE_INTEGER, Date.now()),
     tier,
     part,
     base: clampNumber(raw.base ?? raw.stat, 0, Number.MAX_SAFE_INTEGER, 0),
-    lvl: clampNumber(raw.lvl, 0, 20, 0),
+    lvl,
+    progress: clampEnhancementProgress(lvl, progressRaw),
     type
   };
 }
@@ -583,14 +645,16 @@ export function sanitizeItems(raw) {
 
 export function createDefaultCharacterState() {
   const owned = {};
+  const enhancements = {};
   CHARACTER_IDS.forEach((id) => {
     owned[id] = 0;
+    enhancements[id] = { level: 0, progress: 0 };
   });
   if (owned.waD !== undefined) {
     owned.waD = Math.max(1, owned.waD);
   }
   const active = CHARACTER_IDS.includes('waD') ? 'waD' : CHARACTER_IDS[0];
-  return { owned, active };
+  return { owned, active, enhancements };
 }
 
 export function sanitizeCharacterState(raw) {
@@ -599,6 +663,11 @@ export function sanitizeCharacterState(raw) {
     return defaults;
   }
   const owned = { ...defaults.owned };
+  const enhancements = {};
+  CHARACTER_IDS.forEach((id) => {
+    const base = defaults.enhancements[id] || { level: 0, progress: 0 };
+    enhancements[id] = { level: base.level || 0, progress: base.progress || 0 };
+  });
   if (raw.owned && typeof raw.owned === 'object') {
     CHARACTER_IDS.forEach((id) => {
       const value = raw.owned[id];
@@ -608,11 +677,23 @@ export function sanitizeCharacterState(raw) {
   if (owned.waD === 0 && owned.waD !== undefined) {
     owned.waD = 1;
   }
+  if (raw.enhancements && typeof raw.enhancements === 'object') {
+    CHARACTER_IDS.forEach((id) => {
+      const entry = raw.enhancements[id];
+      if (entry && typeof entry === 'object') {
+        const level = clampEnhancementLevel(entry.level ?? entry.lvl ?? 0);
+        enhancements[id] = {
+          level,
+          progress: clampEnhancementProgress(level, entry.progress ?? entry.shards ?? 0)
+        };
+      }
+    });
+  }
   let active = typeof raw.active === 'string' && CHARACTER_IDS.includes(raw.active) ? raw.active : defaults.active;
   if (!owned[active] || owned[active] <= 0) {
     active = defaults.active;
   }
-  return { owned, active };
+  return { owned, active, enhancements };
 }
 
 export function getCharacterDefinition(id) {
@@ -903,11 +984,10 @@ export function tierScore(tier) {
   return TIER_VALUE[tier] || 1;
 }
 
-export function effectiveStat(item, enhance = defaultEnhance()) {
+export function effectiveStat(item, _enhance = defaultEnhance()) {
   if (!item) return 0;
-  const multipliers = enhance?.multipliers || defaultEnhance().multipliers;
-  const lvl = item.lvl || 0;
-  const mul = multipliers[lvl] || 1;
+  const lvl = clampEnhancementLevel(item.lvl || 0);
+  const mul = getEnhancementMultiplier(lvl);
   return Math.floor((item.base || 0) * mul);
 }
 
@@ -995,6 +1075,19 @@ export function computePlayerStats(equipMap, enhanceConfig, baseStats = {}, acti
       stats[key] = (stats[key] || 0) + offset;
     }
   });
+
+  // 캐릭터 강화 배율 적용 (밸런스 배율 이후)
+  const characterEnhancementLevel = options.characterEnhancementLevel || 0;
+  if (characterEnhancementLevel > 0) {
+    const enhancementMultiplier = getEnhancementMultiplier(characterEnhancementLevel);
+    if (enhancementMultiplier > 1) {
+      BALANCE_STAT_KEYS.forEach((key) => {
+        if (typeof stats[key] === 'number') {
+          stats[key] = stats[key] * enhancementMultiplier;
+        }
+      });
+    }
+  }
 
   const rawSkillMultiplier = Number(classBalance?.skill);
   const skillMultiplier = typeof rawSkillMultiplier === 'number' && isFinite(rawSkillMultiplier) && rawSkillMultiplier > 0

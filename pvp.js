@@ -23,7 +23,8 @@ import {
   formatNum,
   characterBaseStats,
   getCharacterDefinition,
-  getCharacterImageVariants
+  getCharacterImageVariants,
+  getEnhancementMultiplier
 } from './combat-core.js';
 import { simulatePvpBattle } from './pvp-battle-sim.js';
 import { enqueueMail } from './mail-service.js';
@@ -1520,7 +1521,15 @@ async function hydrateProfile(firebaseUser) {
   };
   const defaultCharacters = createDefaultCharacterState();
   const activeCharacterId = characters?.active || defaultCharacters.active;
+
+  // 캐릭터 강화 레벨 가져오기
   const baseStats = characterBaseStats(activeCharacterId) || {};
+  const enhancements = characters?.enhancements || {};
+  const enhancement = enhancements[activeCharacterId] || { level: 0, progress: 0 };
+  const characterEnhancementLevel = typeof enhancement.level === 'number' && isFinite(enhancement.level)
+    ? Math.max(0, Math.floor(enhancement.level))
+    : 0;
+
   const activePetId = pets.active || null;
   const characterDef = getCharacterDefinition(activeCharacterId) || null;
   const derived = derivePlayerStats(
@@ -1532,7 +1541,8 @@ async function hydrateProfile(firebaseUser) {
       balance: effectiveConfig.characterBalance,
       characterId: activeCharacterId,
       classId: characterDef?.classId,
-      character: characterDef
+      character: characterDef,
+      characterEnhancementLevel
     }
   );
   const displayName = profile.username || firebaseUser.email || firebaseUser.uid;
