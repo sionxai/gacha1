@@ -3,7 +3,9 @@
     "allow": [
       "Read(//Users/nohshinhee/Documents/연습2/gacha/**)",
       "Bash(node:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(git ls-tree:*)",
+      "Read(//Users/nohshinhee/Documents/**)"
     ],
     "deny": [],
     "ask": []

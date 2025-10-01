@@ -890,26 +890,79 @@
         </section>
 
         <section class="panel" data-section="equipment">
-          <h2>합성 강화</h2>
+          <h2>장비 강화</h2>
           <div class="row">
             <label>강화 대상<select id="forgeTarget"></select></label>
             <span class="muted">강화 단계 <b id="forgeLv">-</b></span>
             <span class="muted">누적 배율 <b id="forgeMul">1.00×</b></span>
             <span class="muted">다음 배율 <b id="forgeStageMul">-</b></span>
             <span class="muted">강화 후 능력치 <b id="forgePreview">-</b></span>
-            <button id="forgeOnce">중복 사용</button>
-            <button id="forgeAuto">모두 사용</button>
           </div>
-          <div class="row">
-            <span class="muted">필요 중복 <b id="forgeP">-</b></span>
-            <span class="muted">보유 중복 <b id="forgeCostEnh">0</b></span>
-            <span class="muted">단계 요구량 <b id="forgeCostProtect">0</b></span>
-            <span class="muted">사용 후 남음 <b id="forgeCostGold">0</b></span>
+
+          <!-- Forge Tabs -->
+          <div class="forge-tabs" style="display: flex; gap: 8px; margin: 16px 0 8px 0; border-bottom: 2px solid #333;">
+            <button class="forge-tab active" data-forge-tab="ticket" style="padding: 8px 16px; background: none; border: none; border-bottom: 2px solid #5af; color: #5af; cursor: pointer; font-weight: bold;">강화권 강화</button>
+            <button class="forge-tab" data-forge-tab="shard" style="padding: 8px 16px; background: none; border: none; border-bottom: 2px solid transparent; color: #888; cursor: pointer;">중복 합성 MAX</button>
+            <button class="forge-tab" data-forge-tab="info" style="padding: 8px 16px; background: none; border: none; border-bottom: 2px solid transparent; color: #888; cursor: pointer;">강화 정보</button>
           </div>
-          <div class="row">
-            <span class="muted">장비 중복 요약</span>
-            <span class="muted"><b id="gearShardSummary">SSS+:0 · SS+:0 · S+:0 · S:0 · A:0 · B:0 · C:0 · D:0</b></span>
+
+          <!-- Tab 1: Ticket Enhancement -->
+          <div class="forge-tab-content" data-forge-content="ticket">
+            <h3>강화권 강화 (Lv.1-20, 위험)</h3>
+            <div class="row">
+              <span class="muted">성공률: <b id="forgeTicketRate">-</b></span>
+              <span class="muted" style="color: #ff5555;">실패시 장비 파괴!</span>
+            </div>
+            <div class="row">
+              <span class="muted">필요: <b id="forgeTicketCost">-</b></span>
+              <span class="muted">보유: 강화권 <b id="forgeTicketHave">0</b>개, 보호권 <b id="forgeProtectHave">0</b>개, 골드 <b id="forgeGoldHave">0</b>G</span>
+            </div>
+            <div class="row">
+              <button id="forgeTicket">강화 1회 (보호 없음)</button>
+              <button id="forgeTicketProtect">강화 1회 (보호권 사용)</button>
+              <button id="forgeTicketAuto">자동 강화 (보호권 사용)</button>
+            </div>
           </div>
+
+          <!-- Tab 2: Shard Enhancement -->
+          <div class="forge-tab-content" data-forge-content="shard" style="display: none;">
+            <h3>중복 합성 MAX 강화 (MAX+1 ~ MAX+8, 안전)</h3>
+            <div class="row">
+              <span class="muted">진행도: <b id="forgeShardProgress">-</b></span>
+              <span class="muted">보유 중복: <b id="forgeShardAvail">0</b></span>
+              <button id="forgeOnce">중복 사용</button>
+              <button id="forgeAuto">모두 사용</button>
+            </div>
+            <div class="row">
+              <span class="muted">선택된 티어 중복 보유량</span>
+            </div>
+            <div id="gearShardDetail" style="margin: 8px 0; font-size: 0.9em;">
+              <div><b id="gearShardSummary">SSS+:0 · SS+:0 · S+:0 · S:0 · A:0 · B:0 · C:0 · D:0</b></div>
+            </div>
+          </div>
+
+          <!-- Tab 3: Enhancement Info Table -->
+          <div class="forge-tab-content" data-forge-content="info" style="display: none;">
+            <h3>강화 정보 테이블</h3>
+            <div id="forgeInfoTable" style="overflow-x: auto;">
+              <table class="stats" style="width: 100%; font-size: 0.85em;">
+                <thead>
+                  <tr>
+                    <th>레벨</th>
+                    <th>모드</th>
+                    <th>필요 자원</th>
+                    <th>성공률</th>
+                    <th>보너스</th>
+                    <th>누적 배수</th>
+                  </tr>
+                </thead>
+                <tbody id="forgeInfoTableBody">
+                  <!-- Will be populated by JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
           <div id="forgeEffect" class="forge-effect" aria-hidden="true"></div>
           <div id="forgeMsg" class="forge-msg muted" aria-live="polite"></div>
         </section>

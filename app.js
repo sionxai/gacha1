@@ -104,6 +104,7 @@ import {
   effectiveStat,
   ENHANCEMENT_RULES,
   getEnhancementRequirement,
+  getEnhancementRule,
   getEnhancementMultiplier,
   MAX_ENHANCEMENT_LEVEL,
   clampEnhancementLevel,
@@ -241,7 +242,7 @@ import { attachAuthObserver } from './state/auth.js';
         chart: $('#chart'), log: $('#log'),
         atkTotal: $('#atkTotal'), defTotal: $('#defTotal'), nextMonster: $('#nextMonster'), monLevel: $('#monLevel'), monLevelVal: $('#monLevelVal'), winProb: $('#winProb'), fightBtn: $('#fightBtn'), fightResult: $('#fightResult'), autoHuntBtn: $('#autoHuntBtn'), manualCd: $('#manualCd'), autoCd: $('#autoCd'), lvlDec: $('#lvlDec'), lvlInc: $('#lvlInc'), potionCount: $('#potionCount'), usePotion: $('#usePotion'), hyperPotionCount: $('#hyperPotionCount'), useHyperPotion: $('#useHyperPotion'), buffInfo: $('#buffInfo'), claimRevive: $('#claimRevive'), battleResUse: $('#battleResUse'), battleResRemain: $('#battleResRemain'), battleWinProb: $('#battleWinProb'), playerHealthBar: $('#playerHealthBar'), enemyHealthBar: $('#enemyHealthBar'), playerAtkStat: $('#playerAtkStat'), playerDefStat: $('#playerDefStat'), battleEnemyLevel: $('#battleEnemyLevel'), battleEnemyReward: $('#battleEnemyReward'),
         invCount: $('#invCount'), equipGrid: $('#equipGrid'), spareList: $('#spareList'),
-        forgeTarget: $('#forgeTarget'), forgeLv: $('#forgeLv'), forgeMul: $('#forgeMul'), forgeStageMul: $('#forgeStageMul'), forgeP: $('#forgeP'), forgePreview: $('#forgePreview'), forgeCostEnh: $('#forgeCostEnh'), forgeCostProtect: $('#forgeCostProtect'), forgeCostGold: $('#forgeCostGold'), forgeOnce: $('#forgeOnce'), forgeAuto: $('#forgeAuto'), forgeTableBody: $('#forgeTableBody'), forgeReset: $('#forgeReset'), forgeMsg: $('#forgeMsg'), forgeEffect: $('#forgeEffect'), forgeProtectUse: $('#forgeProtectUse'), protectCount: $('#protectCount'), enhanceCount: $('#enhanceCount'), reviveCount: $('#reviveCount'), gearShardSummary: $('#gearShardSummary'),
+        forgeTarget: $('#forgeTarget'), forgeLv: $('#forgeLv'), forgeMul: $('#forgeMul'), forgeStageMul: $('#forgeStageMul'), forgePreview: $('#forgePreview'), forgeOnce: $('#forgeOnce'), forgeAuto: $('#forgeAuto'), forgeTableBody: $('#forgeTableBody'), forgeReset: $('#forgeReset'), forgeMsg: $('#forgeMsg'), forgeEffect: $('#forgeEffect'), forgeProtectUse: $('#forgeProtectUse'), protectCount: $('#protectCount'), enhanceCount: $('#enhanceCount'), reviveCount: $('#reviveCount'), gearShardSummary: $('#gearShardSummary'), forgeShardProgress: $('#forgeShardProgress'), forgeShardAvail: $('#forgeShardAvail'), forgeTicketRate: $('#forgeTicketRate'), forgeTicketCost: $('#forgeTicketCost'), forgeTicketHave: $('#forgeTicketHave'), forgeProtectHave: $('#forgeProtectHave'), forgeGoldHave: $('#forgeGoldHave'), forgeTicket: $('#forgeTicket'), forgeTicketProtect: $('#forgeTicketProtect'), forgeTicketAuto: $('#forgeTicketAuto'),
         pricePotion: $('#pricePotion'), priceHyper: $('#priceHyper'), priceProtect: $('#priceProtect'), priceEnhance: $('#priceEnhance'), priceBattleRes: $('#priceBattleRes'), priceStarter: $('#priceStarter'),
         invPotion: $('#invPotion'), invHyper: $('#invHyper'), invProtect: $('#invProtect'), invEnhance: $('#invEnhance'), invBattleRes: $('#invBattleRes'), invHolyWater: $('#invHolyWater'), shopPanel: $('#shop'), diamondShop: $('#diamondShop'), diamondShopGrid: $('#diamondShopGrid'),
         petList: $('#petList'),
@@ -925,7 +926,8 @@ import { attachAuthObserver } from './state/auth.js';
           tier,
           part,
           base: clampNumber(raw.base ?? raw.stat, 0, Number.MAX_SAFE_INTEGER, 0),
-          lvl: clampNumber(raw.lvl, 0, 20, 0),
+          lvl: clampEnhancementLevel(raw.lvl || 0),
+          progress: clampEnhancementProgress(raw.lvl || 0, raw.progress || 0),
           type: (raw.type === 'atk' || raw.type === 'def') ? raw.type : defType
         };
       }
@@ -2841,7 +2843,19 @@ ${parts.join(', ')}`;
       function addGearShards(tier, amount){ if(!TIERS.includes(tier)) return availableGearShards(tier); const shards = ensureGearShards(); const inc = Math.max(0, Math.floor(amount||0)); if(inc <= 0) return availableGearShards(tier); shards[tier] = clampNumber((shards[tier] || 0) + inc, 0, Number.MAX_SAFE_INTEGER, shards[tier] || 0); markProfileDirty(); updateGearShardView(); return shards[tier]; }
       function spendGearShards(tier, amount){ if(!TIERS.includes(tier)) return false; const shards = ensureGearShards(); const need = Math.max(0, Math.floor(amount||0)); if(need <= 0) return true; if((shards[tier] || 0) < need) return false; shards[tier] -= need; markProfileDirty(); updateGearShardView(); return true; }
       function gearEnhancementState(item){ if(!item) return { level: 0, progress: 0, next: getEnhancementRequirement(0), multiplier: 1, isMax: false }; const level = clampEnhancementLevel(item.lvl || 0); const progress = clampEnhancementProgress(level, item.progress || 0); const next = getEnhancementRequirement(level); return { level, progress, next, multiplier: getEnhancementMultiplier(level), isMax: !next }; }
-      function formatGearEnhancementLabel(item){ const stateInfo = gearEnhancementState(item); if(stateInfo.isMax){ return 'MAX'; } const nextCost = stateInfo.next?.cost || 0; return `Lv.${stateInfo.level} (${stateInfo.progress}/${nextCost})`; }
+      function formatGearEnhancementLabel(item){
+        const stateInfo = gearEnhancementState(item);
+        if(stateInfo.isMax){ return 'MAX'; }
+        const nextCost = stateInfo.next?.cost || 0;
+
+        // Check if this level has a custom label (like MAX+1)
+        const rule = getEnhancementRule(stateInfo.level);
+        if(rule && rule.label) {
+          return `${rule.label} (${stateInfo.progress}/${nextCost})`;
+        }
+
+        return `Lv.${stateInfo.level} (${stateInfo.progress}/${nextCost})`;
+      }
       function applyGearShardsToItem(item, shards){ if(!item) return { consumed: 0, levelBefore: 0, levelAfter: 0, progressBefore: 0, progressAfter: 0, isMax: true }; let remaining = Math.max(0, Math.floor(shards||0)); if(remaining <= 0) return { consumed: 0, levelBefore: clampEnhancementLevel(item.lvl||0), levelAfter: clampEnhancementLevel(item.lvl||0), progressBefore: clampEnhancementProgress(item.lvl||0, item.progress||0), progressAfter: clampEnhancementProgress(item.lvl||0, item.progress||0), isMax: !getEnhancementRequirement(item.lvl||0) }; let level = clampEnhancementLevel(item.lvl || 0); let progress = clampEnhancementProgress(level, item.progress || 0); const levelBefore = level; const progressBefore = progress; let consumed = 0; while(remaining > 0 && level < MAX_ENHANCEMENT_LEVEL){ const req = getEnhancementRequirement(level); if(!req) break; const needed = req.cost - progress; const use = Math.min(remaining, needed); if(use <= 0) break; progress += use; remaining -= use; consumed += use; if(progress >= req.cost){ level += 1; progress = 0; } }
         item.lvl = level;
         item.progress = progress;
@@ -3372,6 +3386,16 @@ ${parts.join(', ')}`;
         // forge
         addListener(els.forgeOnce, 'click', doForgeOnce);
         if(els.forgeAuto){ els.forgeAuto.addEventListener('click', toggleAutoForge); }
+        addListener(els.forgeTicket, 'click', doForgeTicket);
+        addListener(els.forgeTicketProtect, 'click', doForgeTicketProtect);
+        addListener(els.forgeTicketAuto, 'click', doForgeTicketAuto);
+        // forge tabs
+        document.querySelectorAll('.forge-tab').forEach(tab => {
+          tab.addEventListener('click', () => {
+            const targetTab = tab.dataset.forgeTab;
+            switchForgeTab(targetTab);
+          });
+        });
         addListener(els.logoutBtn, 'click', logout);
         addListener(els.toAdmin, 'click', ()=>{
           if(!isAdmin()) {
@@ -5341,7 +5365,13 @@ ${parts.join(', ')}`;
           if(els.characterLegendaryClose) els.characterLegendaryClose.onclick = cleanup;
         });
       }
-      function createGearCard(partDef, item, opts){ opts = opts || {}; const card = document.createElement('div'); card.className = 'gear-card'; if(opts.kind) card.classList.add(opts.kind); card.dataset.slot = partDef.key; const icon = iconForPart(partDef.key); if(item){ card.dataset.tier = item.tier||'NONE'; const isEquip = opts.kind === 'gear-equip'; const isSpare = opts.kind === 'gear-spare'; if(isEquip) card.classList.add('equipped'); const enhState = gearEnhancementState(item); const levelLabel = enhState.isMax ? ' MAX' : (enhState.level ? ' +' + enhState.level : ''); const label = `${item.tier}${levelLabel}`; const statLabel = item.type === 'atk' ? 'ATK' : 'DEF'; const eff = formatNum(effectiveStat(item)); const base = formatNum(item.base||0); const progressLabel = enhState.isMax ? 'MAX 강화' : `Lv.${enhState.level} ${enhState.progress}/${enhState.next?.cost || 0}`; card.innerHTML = `
+      function createGearCard(partDef, item, opts){ opts = opts || {}; const card = document.createElement('div'); card.className = 'gear-card'; if(opts.kind) card.classList.add(opts.kind); card.dataset.slot = partDef.key; const icon = iconForPart(partDef.key); if(item){ card.dataset.tier = item.tier||'NONE'; const isEquip = opts.kind === 'gear-equip'; const isSpare = opts.kind === 'gear-spare'; if(isEquip) card.classList.add('equipped'); const enhState = gearEnhancementState(item);
+        const currentRule = getEnhancementRule(enhState.level);
+        const customLabel = (currentRule && currentRule.label) ? currentRule.label : null;
+        const levelLabel = enhState.isMax ? ' MAX' : (enhState.level ? (customLabel ? ' ' + customLabel : ' +' + enhState.level) : '');
+        const label = `${item.tier}${levelLabel}`; const statLabel = item.type === 'atk' ? 'ATK' : 'DEF'; const eff = formatNum(effectiveStat(item)); const base = formatNum(item.base||0);
+        const progressLevelLabel = customLabel || `Lv.${enhState.level}`;
+        const progressLabel = enhState.isMax ? 'MAX 강화' : `${progressLevelLabel} ${enhState.progress}/${enhState.next?.cost || 0}`; card.innerHTML = `
           <div class="gear-slot">${partDef.name}</div>
           <div class="gear-icon">${icon}</div>
           <div class="gear-tier-text">${label}</div>
@@ -7393,15 +7423,61 @@ ${parts.join(', ')}`;
       function updateCombatView(){ const {atk, def} = getTotals(); if(els.atkTotal) els.atkTotal.textContent = formatNum(atk); if(els.defTotal) els.defTotal.textContent = formatNum(def); if(els.playerAtkStat) els.playerAtkStat.textContent = formatNum(atk); if(els.playerDefStat) els.playerDefStat.textContent = formatNum(def); updateWinProbView(); }
       function updateInventoryView(){ els.invCount.textContent = String(totalKept());
         const grid = els.equipGrid; grid.innerHTML='';
-        PART_DEFS.forEach(function(part){ const item = state.equip[part.key]; const card = createGearCard(part, item, { kind:'gear-equip' }); grid.appendChild(card); });
+        PART_DEFS.forEach(function(part){
+          const item = state.equip[part.key];
+          const card = createGearCard(part, item, { kind:'gear-equip' });
+          // Add click handler to select for forge
+          if(item) {
+            card.style.cursor = 'pointer';
+            card.addEventListener('click', function(e) {
+              // Don't trigger if clicking button
+              if(e.target.tagName === 'BUTTON') return;
+              selectForgeTarget('equip', part.key);
+            });
+          }
+          grid.appendChild(card);
+        });
         els.spareList.innerHTML='';
-        PART_DEFS.forEach(function(part){ const spare = state.spares[part.key]; const card = createGearCard(part, spare, { kind:'gear-spare', button:'착용', emptyText:'예비 없음' }); els.spareList.appendChild(card); });
+        PART_DEFS.forEach(function(part){
+          const spare = state.spares[part.key];
+          const card = createGearCard(part, spare, { kind:'gear-spare', button:'착용', emptyText:'예비 없음' });
+          // Add click handler to select for forge
+          if(spare) {
+            card.style.cursor = 'pointer';
+            card.addEventListener('click', function(e) {
+              // Don't trigger if clicking button
+              if(e.target.tagName === 'BUTTON') return;
+              selectForgeTarget('spare', part.key);
+            });
+          }
+          els.spareList.appendChild(card);
+        });
         updateCombatView();
         buildForgeTargetOptions();
         updateReviveButton();
         updateCharacterList();
         updatePetList();
         refreshInventoryCache();
+      }
+
+      function selectForgeTarget(type, part) {
+        // Switch to equipment tab
+        const equipmentTab = document.querySelector('[data-tab="equipment"]');
+        if(equipmentTab) {
+          equipmentTab.click();
+        }
+        // Select the item in forge dropdown
+        if(els.forgeTarget) {
+          const value = `${type}:${part}`;
+          els.forgeTarget.value = value;
+          updateForgeInfo();
+          updateGearShardView();
+          // Scroll to forge section
+          const forgeSection = document.querySelector('[data-section="equipment"]');
+          if(forgeSection) {
+            forgeSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }
       }
       function totalKept(){ return Object.values(state.equip).filter(Boolean).length + PART_KEYS.reduce(function(acc, part){ return acc + (state.spares[part]?1:0); }, 0); }
 
@@ -7878,45 +7954,498 @@ ${parts.join(', ')}`;
 
       function currentForgeItem(){ const sel = els.forgeTarget; if(!sel || !sel.value) return null; const [type, part] = sel.value.split(':'); if(type === 'equip') return state.equip[part] || null; if(type === 'spare') return state.spares[part] || null; return null; }
 
-      function updateForgeInfo(){ const item = currentForgeItem(); if(!item){ if(els.forgeLv) els.forgeLv.textContent = '-'; if(els.forgeMul) els.forgeMul.textContent = '1.00×'; if(els.forgeStageMul) els.forgeStageMul.textContent = '-'; if(els.forgePreview) els.forgePreview.textContent = '-'; if(els.forgeP) els.forgeP.textContent = '-'; if(els.forgeCostEnh) els.forgeCostEnh.textContent = '0'; if(els.forgeCostProtect) els.forgeCostProtect.textContent = '0'; if(els.forgeCostGold) els.forgeCostGold.textContent = '0'; return; } const info = gearEnhancementState(item); const currentMul = getEnhancementMultiplier(info.level); const available = availableGearShards(item.tier); if(els.forgeLv) els.forgeLv.textContent = String(info.level); if(els.forgeMul) els.forgeMul.textContent = formatMultiplier(currentMul) + '×'; if(els.forgeStageMul){ if(info.next){ const nextMul = getEnhancementMultiplier(info.next.level); els.forgeStageMul.textContent = formatMultiplier(nextMul) + '×'; } else { els.forgeStageMul.textContent = 'MAX'; } } if(els.forgePreview){ const previewStat = Math.floor(item.base * currentMul); els.forgePreview.textContent = formatNum(previewStat); } if(els.forgeP){ if(info.next){ const needed = Math.max(0, info.next.cost - info.progress); els.forgeP.textContent = `${info.progress}/${info.next.cost} (${needed}개 필요)`; } else { els.forgeP.textContent = 'MAX'; } } if(els.forgeCostEnh) els.forgeCostEnh.textContent = formatNum(available); if(els.forgeCostProtect){ if(info.next){ els.forgeCostProtect.textContent = formatNum(info.next.cost); } else { els.forgeCostProtect.textContent = '-'; } } if(els.forgeCostGold){ if(info.next){ const needed = Math.max(0, info.next.cost - info.progress); const remaining = Math.max(0, available - needed); els.forgeCostGold.textContent = formatNum(remaining); } else { els.forgeCostGold.textContent = formatNum(available); } } }
+      function updateForgeInfo(){
+        const item = currentForgeItem();
+        if(!item){
+          if(els.forgeLv) els.forgeLv.textContent = '-';
+          if(els.forgeMul) els.forgeMul.textContent = '1.00×';
+          if(els.forgeStageMul) els.forgeStageMul.textContent = '-';
+          if(els.forgePreview) els.forgePreview.textContent = '-';
+          if(els.forgeShardProgress) els.forgeShardProgress.textContent = '-';
+          if(els.forgeShardAvail) els.forgeShardAvail.textContent = '0';
+          if(els.forgeTicketRate) els.forgeTicketRate.textContent = '-';
+          if(els.forgeTicketCost) els.forgeTicketCost.textContent = '-';
+          if(els.forgeTicketHave) els.forgeTicketHave.textContent = '0';
+          if(els.forgeProtectHave) els.forgeProtectHave.textContent = '0';
+          if(els.forgeGoldHave) els.forgeGoldHave.textContent = '0';
+          return;
+        }
+        const info = gearEnhancementState(item);
+        console.log('[DEBUG] updateForgeInfo - item.lvl:', item.lvl, 'info:', info);
+        const currentMul = getEnhancementMultiplier(info.level);
 
-      function updateForgeControlsView(){ const item = currentForgeItem(); const hasItem = !!item; if(els.forgeOnce) els.forgeOnce.disabled = !hasItem; if(els.forgeAuto) els.forgeAuto.disabled = !hasItem; }
+        // Display level with custom label if available
+        if(els.forgeLv) {
+          const currentRule = getEnhancementRule(info.level);
+          const levelLabel = (currentRule && currentRule.label) ? currentRule.label : `Lv.${info.level}`;
+          els.forgeLv.textContent = levelLabel;
+        }
+        if(els.forgeMul) els.forgeMul.textContent = formatMultiplier(currentMul) + '×';
+        if(els.forgeStageMul){
+          if(info.next){
+            const nextMul = getEnhancementMultiplier(info.next.level);
+            els.forgeStageMul.textContent = formatMultiplier(nextMul) + '×';
+          } else {
+            els.forgeStageMul.textContent = 'MAX';
+          }
+        }
+        if(els.forgePreview){
+          const previewStat = Math.floor(item.base * currentMul);
+          els.forgePreview.textContent = formatNum(previewStat);
+        }
 
-      function updateGearShardView(){ if(!els.gearShardSummary) return; const shards = ensureGearShards(); const summary = TIERS.map((tier)=> `${tier}: ${formatNum(shards[tier] || 0)}`).join(' · '); els.gearShardSummary.textContent = summary; }
+        // Update ticket section (Lv.1-20)
+        const nextRule = info.next;
+        const enhance = state.items.enhance || 0;
+        const protect = state.items.protect || 0;
+        const gold = state.gold || 0;
+        if(nextRule && nextRule.mode === 'ticket') {
+          const ticketCost = nextRule.ticketCost || 0;
+          const protectCost = nextRule.protectCost || 0;
+          const goldCost = nextRule.goldCost || 0;
+          const successRate = nextRule.successRate || 0.5;
+
+          if(els.forgeTicketRate) els.forgeTicketRate.textContent = `${(successRate * 100).toFixed(0)}%`;
+          if(els.forgeTicketCost) els.forgeTicketCost.textContent = `강화권 ${ticketCost}개, 보호권 ${protectCost}개, 골드 ${goldCost.toLocaleString()}G`;
+          if(els.forgeTicketHave) els.forgeTicketHave.textContent = formatNum(enhance);
+          if(els.forgeProtectHave) els.forgeProtectHave.textContent = formatNum(protect);
+          if(els.forgeGoldHave) els.forgeGoldHave.textContent = gold.toLocaleString();
+        } else {
+          if(els.forgeTicketRate) els.forgeTicketRate.textContent = 'Lv.1-20만 사용 가능';
+          if(els.forgeTicketCost) els.forgeTicketCost.textContent = '-';
+          if(els.forgeTicketHave) els.forgeTicketHave.textContent = formatNum(enhance);
+          if(els.forgeProtectHave) els.forgeProtectHave.textContent = formatNum(protect);
+          if(els.forgeGoldHave) els.forgeGoldHave.textContent = gold.toLocaleString();
+        }
+
+        // Update shard section (MAX+1 to MAX+8)
+        const available = availableGearShards(item.tier);
+        if(nextRule && nextRule.mode === 'shard') {
+          const needed = Math.max(0, nextRule.cost - info.progress);
+          if(els.forgeShardProgress) els.forgeShardProgress.textContent = `${info.progress}/${nextRule.cost} (${needed}개 필요)`;
+          if(els.forgeShardAvail) els.forgeShardAvail.textContent = formatNum(available);
+        } else {
+          if(els.forgeShardProgress) els.forgeShardProgress.textContent = 'MAX+1 이상만 사용 가능';
+          if(els.forgeShardAvail) els.forgeShardAvail.textContent = formatNum(available);
+        }
+      }
+
+      function updateForgeControlsView(){
+        const item = currentForgeItem();
+        if(!item) {
+          if(els.forgeOnce) els.forgeOnce.disabled = true;
+          if(els.forgeAuto) els.forgeAuto.disabled = true;
+          if(els.forgeTicket) els.forgeTicket.disabled = true;
+          if(els.forgeTicketProtect) els.forgeTicketProtect.disabled = true;
+          return;
+        }
+        const info = gearEnhancementState(item);
+        const nextRule = info.next;
+
+        // Shard buttons
+        if(nextRule && nextRule.mode === 'shard') {
+          if(els.forgeOnce) els.forgeOnce.disabled = false;
+          if(els.forgeAuto) els.forgeAuto.disabled = false;
+        } else {
+          if(els.forgeOnce) els.forgeOnce.disabled = true;
+          if(els.forgeAuto) els.forgeAuto.disabled = true;
+        }
+
+        // Ticket buttons (including auto)
+        if(nextRule && nextRule.mode === 'ticket') {
+          if(els.forgeTicket) els.forgeTicket.disabled = false;
+          if(els.forgeTicketProtect) els.forgeTicketProtect.disabled = false;
+          if(els.forgeTicketAuto) els.forgeTicketAuto.disabled = false;
+        } else {
+          if(els.forgeTicket) els.forgeTicket.disabled = true;
+          if(els.forgeTicketProtect) els.forgeTicketProtect.disabled = true;
+          if(els.forgeTicketAuto) els.forgeTicketAuto.disabled = true;
+        }
+      }
+
+      function updateGearShardView(){
+        if(!els.gearShardSummary) return;
+        const shards = ensureGearShards();
+        const summary = TIERS.map((tier)=> `${tier}: ${formatNum(shards[tier] || 0)}`).join(' · ');
+
+        const item = currentForgeItem();
+        const detailContainer = document.getElementById('gearShardDetail');
+
+        if(item && item.tier && detailContainer) {
+          const tierShards = shards[item.tier] || 0;
+          detailContainer.innerHTML = `
+            <div><b id="gearShardSummary">${summary}</b></div>
+            <div style="margin-top: 8px; padding: 8px; background: rgba(0,150,255,0.1); border-radius: 4px;">
+              <div style="font-size: 0.9em; color: #5af;">
+                ✨ 선택한 장비(<b>${item.tier}</b>) 강화 가능 횟수: <b style="font-size: 1.2em;">${formatNum(tierShards)}개</b>
+              </div>
+              <div style="font-size: 0.8em; color: #888; margin-top: 4px;">
+                ※ 같은 티어의 중복 장비는 부위 상관없이 공용으로 사용됩니다
+              </div>
+            </div>
+          `;
+        } else if(detailContainer) {
+          detailContainer.innerHTML = `<div><b id="gearShardSummary">${summary}</b></div>`;
+        } else {
+          els.gearShardSummary.textContent = summary;
+        }
+      }
+
+      function switchForgeTab(tabName) {
+        // Update tab buttons
+        document.querySelectorAll('.forge-tab').forEach(tab => {
+          if(tab.dataset.forgeTab === tabName) {
+            tab.classList.add('active');
+            tab.style.borderBottomColor = '#5af';
+            tab.style.color = '#5af';
+            tab.style.fontWeight = 'bold';
+          } else {
+            tab.classList.remove('active');
+            tab.style.borderBottomColor = 'transparent';
+            tab.style.color = '#888';
+            tab.style.fontWeight = 'normal';
+          }
+        });
+
+        // Update tab content
+        document.querySelectorAll('.forge-tab-content').forEach(content => {
+          if(content.dataset.forgeContent === tabName) {
+            content.style.display = '';
+          } else {
+            content.style.display = 'none';
+          }
+        });
+
+        // If switching to info tab, populate the table
+        if(tabName === 'info') {
+          buildForgeInfoTable();
+        }
+      }
+
+      function buildForgeInfoTable() {
+        const tbody = document.getElementById('forgeInfoTableBody');
+        if(!tbody) return;
+
+        tbody.innerHTML = '';
+        let cumulativeBonus = 0;
+
+        ENHANCEMENT_RULES.forEach(rule => {
+          cumulativeBonus += rule.bonus;
+          const row = document.createElement('tr');
+
+          const levelLabel = rule.label || `Lv.${rule.level}`;
+          const mode = rule.mode === 'ticket' ? '강화권' : '중복';
+
+          let resources = '-';
+          if(rule.mode === 'ticket') {
+            resources = `강화권 ${rule.ticketCost}개, 보호권 ${rule.protectCost}개, ${(rule.goldCost || 0).toLocaleString()}G`;
+          } else if(rule.mode === 'shard') {
+            resources = `중복 ${rule.cost}개`;
+          }
+
+          const successRate = rule.successRate ? `${(rule.successRate * 100).toFixed(0)}%` : '100%';
+          const bonus = `+${(rule.bonus * 100).toFixed(0)}%`;
+          const cumulative = `×${(1 + cumulativeBonus).toFixed(2)}`;
+
+          row.innerHTML = `
+            <td style="font-weight: bold;">${levelLabel}</td>
+            <td>${mode}</td>
+            <td style="font-size: 0.85em;">${resources}</td>
+            <td>${successRate}</td>
+            <td>${bonus}</td>
+            <td style="font-weight: bold; color: #5af;">${cumulative}</td>
+          `;
+
+          tbody.appendChild(row);
+        });
+      }
 
       function setForgeMsg(text, tone){ if(!els.forgeMsg) return; els.forgeMsg.textContent = text || ''; els.forgeMsg.classList.remove('msg-ok','msg-warn','msg-danger','muted'); if(tone==='ok'){ els.forgeMsg.classList.add('msg-ok'); } else if(tone==='warn'){ els.forgeMsg.classList.add('msg-warn'); } else if(tone==='danger'){ els.forgeMsg.classList.add('msg-danger'); } else { els.forgeMsg.classList.add('muted'); } }
 
-      function showForgeEffect(kind){ const eff = els.forgeEffect; if(!eff) return; const textMap = { success:'강화 완료!', progress:'강화 진행', fail:'재료 부족' }; const existing = getForgeEffectTimerRef(); if(existing){ clearTimeout(existing); setForgeEffectTimerRef(null); } eff.classList.remove('success','progress','fail','show');
+      function showForgeEffect(kind){
+        const eff = els.forgeEffect;
+        if(!eff) return;
+        const textMap = {
+          success:'강화 완료!',
+          progress:'강화 진행',
+          fail:'재료 부족',
+          protected:'장비 보호됨',
+          destroyed:'장비 파괴!'
+        };
+        const existing = getForgeEffectTimerRef();
+        if(existing){
+          clearTimeout(existing);
+          setForgeEffectTimerRef(null);
+        }
+        eff.classList.remove('success','progress','fail','protected','destroyed','show');
         void eff.offsetWidth;
         if(kind === 'success'){ eff.classList.add('success'); }
         else if(kind === 'progress'){ eff.classList.add('progress'); }
+        else if(kind === 'protected'){ eff.classList.add('protected'); }
+        else if(kind === 'destroyed'){ eff.classList.add('destroyed'); }
         else { eff.classList.add('fail'); }
         eff.textContent = textMap[kind] || '';
         eff.classList.add('show');
-        const timer = setTimeout(()=>{ if(!els.forgeEffect) return; eff.classList.remove('show','success','progress','fail'); eff.textContent=''; setForgeEffectTimerRef(null); }, 720);
+        const timer = setTimeout(()=>{
+          if(!els.forgeEffect) return;
+          eff.classList.remove('show','success','progress','fail','protected','destroyed');
+          eff.textContent='';
+          setForgeEffectTimerRef(null);
+        }, 720);
         setForgeEffectTimerRef(timer);
       }
 
-      function performForgeAttempt(opts){ opts = opts||{}; const consumeAll = !!opts.consumeAll; const item = currentForgeItem(); if(!item){ setForgeMsg('강화할 장비를 선택하세요.', 'warn'); showForgeEffect('fail'); return {status:'no-item'}; }
+      function performForgeAttempt(opts){
+        opts = opts||{};
+        const consumeAll = !!opts.consumeAll;
+        const useProtect = !!opts.useProtect;
+        const item = currentForgeItem();
+        if(!item){
+          setForgeMsg('강화할 장비를 선택하세요.', 'warn');
+          showForgeEffect('fail');
+          return {status:'no-item'};
+        }
         const info = gearEnhancementState(item);
-        if(info.isMax){ setForgeMsg('이미 최대 강화 단계입니다.', 'warn'); showForgeEffect('fail'); return {status:'max'}; }
-        const available = availableGearShards(item.tier);
-        if(available <= 0){ setForgeMsg('사용 가능한 중복이 없습니다.', 'warn'); showForgeEffect('fail'); return {status:'no-shards'}; }
-        const needed = info.next ? Math.max(1, info.next.cost - info.progress) : 0;
-        const use = consumeAll ? available : Math.min(available, needed);
-        const result = applyGearShardsToItem(item, use);
-        if(result.consumed <= 0){ setForgeMsg('사용할 중복이 없습니다.', 'warn'); showForgeEffect('fail'); return {status:'no-shards'}; }
-        spendGearShards(item.tier, result.consumed);
-        updateInventoryView();
-        updateForgeInfo();
-        markProfileDirty();
-        if(result.levelAfter > result.levelBefore){ setForgeMsg(`강화 성공! Lv.${result.levelBefore} → Lv.${result.levelAfter} (중복 ${result.consumed}개 사용)`, 'ok'); showForgeEffect('success'); return {status:'level-up', consumed: result.consumed}; }
-        setForgeMsg(`강화 진행: Lv.${result.levelAfter} (${result.progressAfter}/${info.next?.cost || 0})`, 'ok'); showForgeEffect('progress'); return {status:'progress', consumed: result.consumed}; }
+        if(info.isMax){
+          setForgeMsg('이미 최대 강화 단계입니다.', 'warn');
+          showForgeEffect('fail');
+          return {status:'max'};
+        }
+
+        const nextRule = info.next;
+        if(!nextRule) return {status:'max'};
+
+        // Phase 1: Shard-based enhancement (Lv.1-7)
+        if(nextRule.mode === 'shard') {
+          const available = availableGearShards(item.tier);
+          if(available <= 0){
+            setForgeMsg('사용 가능한 중복이 없습니다.', 'warn');
+            showForgeEffect('fail');
+            return {status:'no-shards'};
+          }
+          const needed = Math.max(1, nextRule.cost - info.progress);
+          const use = consumeAll ? available : Math.min(available, needed);
+          const result = applyGearShardsToItem(item, use);
+          if(result.consumed <= 0){
+            setForgeMsg('사용할 중복이 없습니다.', 'warn');
+            showForgeEffect('fail');
+            return {status:'no-shards'};
+          }
+          spendGearShards(item.tier, result.consumed);
+          updateInventoryView();
+          updateForgeInfo();
+          markProfileDirty();
+          if(result.levelAfter > result.levelBefore){
+            const fromLabel = getEnhancementRule(result.levelBefore)?.label || `Lv.${result.levelBefore}`;
+            const toLabel = getEnhancementRule(result.levelAfter)?.label || `Lv.${result.levelAfter}`;
+            setForgeMsg(`강화 성공! ${fromLabel} → ${toLabel} (중복 ${result.consumed}개 사용)`, 'ok');
+            showForgeEffect('success');
+            return {status:'level-up', consumed: result.consumed};
+          }
+          const levelLabel = getEnhancementRule(result.levelAfter)?.label || `Lv.${result.levelAfter}`;
+          setForgeMsg(`강화 진행: ${levelLabel} (${result.progressAfter}/${nextRule.cost || 0})`, 'ok');
+          showForgeEffect('progress');
+          return {status:'progress', consumed: result.consumed};
+        }
+
+        // Phase 2: Ticket-based enhancement (Lv.8-20)
+        if(nextRule.mode === 'ticket') {
+          const ticketCost = nextRule.ticketCost || 0;
+          const protectCost = nextRule.protectCost || 0;
+          const goldCost = nextRule.goldCost || 0;
+          const successRate = nextRule.successRate || 0.5;
+
+          // Check resources
+          const enhance = state.items.enhance || 0;
+          const protect = state.items.protect || 0;
+          const gold = state.gold || 0;
+
+          if(enhance < ticketCost) {
+            setForgeMsg(`강화권이 부족합니다. (필요: ${ticketCost}개, 보유: ${enhance}개)`, 'warn');
+            showForgeEffect('fail');
+            return {status:'no-enhance'};
+          }
+          if(useProtect && protect < protectCost) {
+            setForgeMsg(`보호권이 부족합니다. (필요: ${protectCost}개, 보유: ${protect}개)`, 'warn');
+            showForgeEffect('fail');
+            return {status:'no-protect'};
+          }
+          if(gold < goldCost) {
+            setForgeMsg(`골드가 부족합니다. (필요: ${goldCost.toLocaleString()}G)`, 'warn');
+            showForgeEffect('fail');
+            return {status:'no-gold'};
+          }
+
+          // Consume resources
+          state.gold -= goldCost;
+          state.items.enhance -= ticketCost;
+          if(useProtect) {
+            state.items.protect -= protectCost;
+          }
+
+          // Roll for success
+          const roll = Math.random();
+          const success = roll < successRate;
+
+          if(success) {
+            // Success: increase level
+            item.lvl = nextRule.level;
+            item.progress = 0;
+            updateInventoryView();
+            updateForgeInfo();
+            markProfileDirty();
+            const fromLabel = getEnhancementRule(info.level)?.label || `Lv.${info.level}`;
+            const toLabel = getEnhancementRule(nextRule.level)?.label || `Lv.${nextRule.level}`;
+            setForgeMsg(`강화 성공! ${fromLabel} → ${toLabel} (확률: ${(successRate * 100).toFixed(0)}%)`, 'ok');
+            showForgeEffect('success');
+            return {status:'success', newLevel: nextRule.level};
+          } else {
+            // Failure
+            if(useProtect) {
+              // Protected: item survives
+              updateInventoryView();
+              updateForgeInfo();
+              markProfileDirty();
+              setForgeMsg(`강화 실패! 보호권 사용으로 장비 유지 (확률: ${(successRate * 100).toFixed(0)}%)`, 'warn');
+              showForgeEffect('protected');
+              return {status:'protected'};
+            } else {
+              // Destroyed: remove item
+              removeItem(item);
+              updateInventoryView();
+              updateForgeInfo();
+              markProfileDirty();
+              setForgeMsg(`강화 실패! 장비가 파괴되었습니다... (확률: ${(successRate * 100).toFixed(0)}%)`, 'error');
+              showForgeEffect('destroyed');
+              return {status:'destroyed'};
+            }
+          }
+        }
+
+        return {status:'unknown'};
+      }
 
 
 
-      function toggleAutoForge(){ performForgeAttempt({ consumeAll: true }); }
-      function doForgeOnce(){ performForgeAttempt({ consumeAll: false }); }
+      function toggleAutoForge(){
+        performForgeAttempt({ consumeAll: true });
+      }
+
+      function doForgeOnce(){
+        performForgeAttempt({ consumeAll: false });
+      }
+
+      function doForgeTicket(){
+        performForgeAttempt({ consumeAll: false, useProtect: false });
+      }
+
+      function doForgeTicketProtect(){
+        performForgeAttempt({ consumeAll: false, useProtect: true });
+      }
+
+      async function doForgeTicketAuto(){
+        const item = currentForgeItem();
+        if(!item) {
+          setForgeMsg('강화할 장비를 선택하세요.', 'warn');
+          return;
+        }
+
+        const info = gearEnhancementState(item);
+        const nextRule = info.next;
+
+        if(!nextRule || nextRule.mode !== 'ticket') {
+          setForgeMsg('강화권 모드(Lv.1-20)에서만 자동 강화를 사용할 수 있습니다.', 'warn');
+          return;
+        }
+
+        const confirmed = confirm('자동 강화를 시작하시겠습니까?\n\n- 강화권+골드를 소모하여 반복 시도합니다.\n- 보호권을 사용하여 장비 파괴를 방지합니다.\n- 성공 또는 보호권/강화권/골드 소진시 중단됩니다.\n- 중간에 멈출 수 없으므로 신중히 선택하세요.');
+        if(!confirmed) return;
+
+        // Disable buttons during auto forge
+        if(els.forgeTicket) els.forgeTicket.disabled = true;
+        if(els.forgeTicketProtect) els.forgeTicketProtect.disabled = true;
+        if(els.forgeTicketAuto) els.forgeTicketAuto.disabled = true;
+        if(els.forgeOnce) els.forgeOnce.disabled = true;
+        if(els.forgeAuto) els.forgeAuto.disabled = true;
+
+        let attempts = 0;
+        let maxAttempts = 1000; // Safety limit
+
+        const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+        while(attempts < maxAttempts) {
+          const currentItem = currentForgeItem();
+          if(!currentItem) {
+            setForgeMsg('장비가 없습니다. 자동 강화를 중단합니다.', 'warn');
+            break;
+          }
+
+          const info = gearEnhancementState(currentItem);
+          const nextRule = info.next;
+
+          if(!nextRule) {
+            setForgeMsg(`최대 레벨 도달! (시도 횟수: ${attempts}회)`, 'ok');
+            break;
+          }
+
+          if(nextRule.mode !== 'ticket') {
+            setForgeMsg(`Lv.${info.level} 달성! 강화권 모드가 끝났습니다. (시도: ${attempts}회)`, 'ok');
+            break;
+          }
+
+          const ticketCost = nextRule.ticketCost || 0;
+          const protectCost = nextRule.protectCost || 0;
+          const goldCost = nextRule.goldCost || 0;
+          const enhance = state.items.enhance || 0;
+          const protect = state.items.protect || 0;
+          const gold = state.gold || 0;
+
+          // Check resources
+          if(enhance < ticketCost) {
+            setForgeMsg(`강화권 부족으로 자동 강화를 중단합니다. (현재: Lv.${info.level}, 시도: ${attempts}회)`, 'warn');
+            break;
+          }
+          if(protect < protectCost) {
+            setForgeMsg(`보호권 부족으로 자동 강화를 중단합니다. (현재: Lv.${info.level}, 시도: ${attempts}회)`, 'warn');
+            break;
+          }
+          if(gold < goldCost) {
+            setForgeMsg(`골드 부족으로 자동 강화를 중단합니다. (현재: Lv.${info.level}, 시도: ${attempts}회)`, 'warn');
+            break;
+          }
+
+          attempts++;
+          const result = performForgeAttempt({ consumeAll: false, useProtect: true });
+
+          if(result.status === 'success') {
+            setForgeMsg(`Lv.${result.newLevel} 강화 성공! 계속 진행중... (시도: ${attempts}회)`, 'ok');
+            // Continue to next level
+            await delay(300);
+            continue;
+          }
+
+          if(result.status === 'destroyed') {
+            setForgeMsg(`장비가 파괴되었습니다. 자동 강화를 중단합니다. (시도: ${attempts}회)`, 'error');
+            break;
+          }
+
+          if(result.status === 'protected') {
+            // Failed but protected, retry same level
+            await delay(300);
+            continue;
+          }
+
+          // Brief delay for UI update
+          await delay(300);
+        }
+
+        if(attempts >= maxAttempts) {
+          setForgeMsg(`안전을 위해 자동 강화를 중단했습니다. (최대 시도 횟수 도달)`, 'warn');
+        }
+
+        // Re-enable buttons
+        updateForgeControlsView();
+      }
 
       function removeItem(item){ if(!item) return; PART_KEYS.forEach(function(part){ if(state.equip[part] === item){ state.equip[part] = null; } if(state.spares[part] === item){ state.spares[part] = null; } }); refreshInventoryCache(); buildForgeTargetOptions(); markProfileDirty(); }
       // 강화 관련 로직은 forge 모듈로 이동했습니다.

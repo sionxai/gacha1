@@ -393,8 +393,7 @@ async function claimMail(mail) {
     console.log('🎁 [claimMail] 시작 - 메일 데이터:', mail);
     console.log('🔍 [claimMail] 즉시 쿠폰 검사:', {
       hasCoupon: !!mail.coupon,
-      coupon_type: mail.coupon_type,
-      coupon_targetKey: mail.coupon_targetKey,
+      coupon: mail.coupon,
       allMailKeys: Object.keys(mail)
     });
     setMailboxStatus('우편을 수령하는 중입니다...', null);

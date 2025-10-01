@@ -150,13 +150,36 @@ export function defaultEnhance() {
 }
 
 export const ENHANCEMENT_RULES = Object.freeze([
-  { level: 1, cost: 1, bonus: 0.10 },
-  { level: 2, cost: 1, bonus: 0.10 },
-  { level: 3, cost: 1, bonus: 0.10 },
-  { level: 4, cost: 3, bonus: 0.30 },
-  { level: 5, cost: 3, bonus: 0.30 },
-  { level: 6, cost: 3, bonus: 0.30 },
-  { level: 7, cost: 5, bonus: 0.50, label: 'MAX' }
+  // Phase 1: Ticket-based enhancement (Lv.1-20, with failure/destruction risk)
+  { level: 1, ticketCost: 1, protectCost: 1, goldCost: 1000, bonus: 0.10, successRate: 0.90, mode: 'ticket' },
+  { level: 2, ticketCost: 1, protectCost: 1, goldCost: 2000, bonus: 0.10, successRate: 0.85, mode: 'ticket' },
+  { level: 3, ticketCost: 2, protectCost: 1, goldCost: 3000, bonus: 0.10, successRate: 0.80, mode: 'ticket' },
+  { level: 4, ticketCost: 2, protectCost: 1, goldCost: 4000, bonus: 0.30, successRate: 0.75, mode: 'ticket' },
+  { level: 5, ticketCost: 3, protectCost: 1, goldCost: 5000, bonus: 0.30, successRate: 0.70, mode: 'ticket' },
+  { level: 6, ticketCost: 3, protectCost: 1, goldCost: 6000, bonus: 0.30, successRate: 0.65, mode: 'ticket' },
+  { level: 7, ticketCost: 4, protectCost: 1, goldCost: 7000, bonus: 0.50, successRate: 0.60, mode: 'ticket' },
+  { level: 8, ticketCost: 4, protectCost: 1, goldCost: 8000, bonus: 0.10, successRate: 0.55, mode: 'ticket' },
+  { level: 9, ticketCost: 5, protectCost: 1, goldCost: 10000, bonus: 0.10, successRate: 0.50, mode: 'ticket' },
+  { level: 10, ticketCost: 5, protectCost: 1, goldCost: 15000, bonus: 0.20, successRate: 0.45, mode: 'ticket' },
+  { level: 11, ticketCost: 6, protectCost: 1, goldCost: 20000, bonus: 0.20, successRate: 0.40, mode: 'ticket' },
+  { level: 12, ticketCost: 7, protectCost: 1, goldCost: 30000, bonus: 0.20, successRate: 0.35, mode: 'ticket' },
+  { level: 13, ticketCost: 8, protectCost: 2, goldCost: 50000, bonus: 0.30, successRate: 0.30, mode: 'ticket' },
+  { level: 14, ticketCost: 10, protectCost: 2, goldCost: 80000, bonus: 0.30, successRate: 0.25, mode: 'ticket' },
+  { level: 15, ticketCost: 12, protectCost: 2, goldCost: 120000, bonus: 0.30, successRate: 0.20, mode: 'ticket' },
+  { level: 16, ticketCost: 15, protectCost: 2, goldCost: 200000, bonus: 0.50, successRate: 0.18, mode: 'ticket' },
+  { level: 17, ticketCost: 20, protectCost: 3, goldCost: 350000, bonus: 0.50, successRate: 0.15, mode: 'ticket' },
+  { level: 18, ticketCost: 25, protectCost: 3, goldCost: 600000, bonus: 0.50, successRate: 0.12, mode: 'ticket' },
+  { level: 19, ticketCost: 30, protectCost: 4, goldCost: 1000000, bonus: 0.70, successRate: 0.10, mode: 'ticket' },
+  { level: 20, ticketCost: 40, protectCost: 5, goldCost: 2000000, bonus: 1.00, successRate: 0.08, mode: 'ticket' },
+  // Phase 2: Shard-based MAX enhancement (MAX+1 to MAX+8, 100% success)
+  { level: 21, cost: 5, bonus: 0.20, successRate: 1.0, mode: 'shard', label: 'MAX+1' },
+  { level: 22, cost: 10, bonus: 0.20, successRate: 1.0, mode: 'shard', label: 'MAX+2' },
+  { level: 23, cost: 15, bonus: 0.30, successRate: 1.0, mode: 'shard', label: 'MAX+3' },
+  { level: 24, cost: 20, bonus: 0.30, successRate: 1.0, mode: 'shard', label: 'MAX+4' },
+  { level: 25, cost: 25, bonus: 0.40, successRate: 1.0, mode: 'shard', label: 'MAX+5' },
+  { level: 26, cost: 30, bonus: 0.40, successRate: 1.0, mode: 'shard', label: 'MAX+6' },
+  { level: 27, cost: 40, bonus: 0.50, successRate: 1.0, mode: 'shard', label: 'MAX+7' },
+  { level: 28, cost: 50, bonus: 0.50, successRate: 1.0, mode: 'shard', label: 'MAX+8' }
 ]);
 
 export const MAX_ENHANCEMENT_LEVEL = ENHANCEMENT_RULES[ENHANCEMENT_RULES.length - 1].level;
