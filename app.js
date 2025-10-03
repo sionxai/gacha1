@@ -6016,30 +6016,133 @@ ${parts.join(', ')}`;
         return state.characters;
       }
 
+      function requirementCost(rule){
+        if(!rule || typeof rule !== 'object') return 0;
+        const { cost, ticketCost } = rule;
+        if(typeof cost === 'number' && isFinite(cost) && cost > 0){
+          return cost;
+        }
+        if(typeof ticketCost === 'number' && isFinite(ticketCost) && ticketCost > 0){
+          return ticketCost;
+        }
+        return 0;
+      }
+
+      const CHARACTER_ENH_REQUIREMENTS = (()=>{
+        let cumulative = 0;
+        return ENHANCEMENT_RULES
+          .map((rule)=>{
+            const cost = requirementCost(rule);
+            if(cost <= 0) return null;
+            cumulative += cost;
+            return {
+              level: rule.level,
+              fromLevel: rule.level - 1,
+              label: rule.label || `Lv.${rule.level}`,
+              cost,
+              cumulative
+            };
+          })
+          .filter(Boolean);
+      })();
+
       function characterEnhancementState(characterId){
         const chars = ensureCharacterState();
         if(!CHARACTER_IDS.includes(characterId)){
-          return { level: 0, progress: 0, next: getEnhancementRequirement(0), multiplier: 1, isMax: false, available: 0 };
+          const nextRule = getEnhancementRequirement(0);
+          return { level: 0, progress: 0, next: nextRule, nextCost: requirementCost(nextRule), multiplier: 1, isMax: false, available: 0 };
         }
         const entry = chars.enhancements?.[characterId] || { level: 0, progress: 0 };
         const level = clampEnhancementLevel(entry.level || 0);
         const progress = clampEnhancementProgress(level, entry.progress || 0);
         const next = getEnhancementRequirement(level);
-        const available = Math.max(0, (chars.owned?.[characterId] || 0) - 1);
+        const nextCost = requirementCost(next);
+        const owned = chars.owned?.[characterId] || 0;
+        const available = Math.max(0, owned - 1);
+        console.log('[DEBUG characterEnhancementState]', characterId, 'owned:', owned, 'available:', available, 'level:', level, 'progress:', progress);
         return {
           level,
           progress,
           next,
+          nextCost,
           multiplier: getEnhancementMultiplier(level),
           isMax: !next,
           available
         };
       }
-      function consumeCharacterDuplicates(characterId, amount){ const chars = ensureCharacterState(); if(!CHARACTER_IDS.includes(characterId)) return { consumed: 0, levelBefore: 0, levelAfter: 0, progressBefore: 0, progressAfter: 0, isMax: true }; amount = Math.max(0, Math.floor(amount||0)); const owned = chars.owned?.[characterId] || 0; const available = Math.max(0, owned - 1); if(amount <= 0 || available <= 0){ const entry = chars.enhancements?.[characterId] || { level:0, progress:0 }; const level = clampEnhancementLevel(entry.level || 0); const prog = clampEnhancementProgress(level, entry.progress || 0); return { consumed: 0, levelBefore: level, levelAfter: level, progressBefore: prog, progressAfter: prog, isMax: !getEnhancementRequirement(level) }; } const entry = chars.enhancements?.[characterId] || { level:0, progress:0 }; let level = clampEnhancementLevel(entry.level || 0); let progress = clampEnhancementProgress(level, entry.progress || 0); let remaining = Math.min(amount, available); let consumed = 0; const levelBefore = level; const progressBefore = progress; while(remaining > 0 && level < MAX_ENHANCEMENT_LEVEL){ const req = getEnhancementRequirement(level); if(!req) break; const need = req.cost - progress; const use = Math.min(remaining, need); if(use <= 0) break; progress += use; remaining -= use; consumed += use; if(progress >= req.cost){ level += 1; progress = 0; } }
+      function consumeCharacterDuplicates(characterId, amount){
+        const chars = ensureCharacterState();
+        if(!CHARACTER_IDS.includes(characterId)) return { consumed: 0, levelBefore: 0, levelAfter: 0, progressBefore: 0, progressAfter: 0, isMax: true };
+        amount = Math.max(0, Math.floor(amount||0));
+        const owned = chars.owned?.[characterId] || 0;
+        const available = Math.max(0, owned - 1);
+        console.log('[DEBUG consumeCharacterDuplicates] characterId:', characterId, 'amount:', amount, 'owned:', owned, 'available:', available);
+        if(amount <= 0 || available <= 0){
+          console.log('[DEBUG consumeCharacterDuplicates] amount <= 0 OR available <= 0, returning consumed: 0');
+          const entry = chars.enhancements?.[characterId] || { level:0, progress:0 };
+          const level = clampEnhancementLevel(entry.level || 0);
+          const prog = clampEnhancementProgress(level, entry.progress || 0);
+          return { consumed: 0, levelBefore: level, levelAfter: level, progressBefore: prog, progressAfter: prog, isMax: !getEnhancementRequirement(level) };
+        }
+        const entry = chars.enhancements?.[characterId] || { level:0, progress:0 };
+        let level = clampEnhancementLevel(entry.level || 0);
+        let progress = clampEnhancementProgress(level, entry.progress || 0);
+        let remaining = Math.min(amount, available);
+        let consumed = 0;
+        const levelBefore = level;
+        const progressBefore = progress;
+        console.log('[DEBUG consumeCharacterDuplicates] Starting loop - level:', level, 'progress:', progress, 'remaining:', remaining, 'MAX_ENHANCEMENT_LEVEL:', MAX_ENHANCEMENT_LEVEL);
+        while(remaining > 0 && level < MAX_ENHANCEMENT_LEVEL){
+          const req = getEnhancementRequirement(level);
+          console.log('[DEBUG consumeCharacterDuplicates] Loop iteration - level:', level, 'req:', req);
+          if(!req) break;
+          const cost = requirementCost(req);
+          if(cost <= 0){
+            console.warn('[WARN consumeCharacterDuplicates] Invalid enhancement cost detected:', req);
+            break;
+          }
+          const need = cost - progress;
+          const use = Math.min(remaining, need);
+          if(use <= 0) break;
+          progress += use;
+          remaining -= use;
+          consumed += use;
+          if(progress >= cost){
+            level += 1;
+            progress = 0;
+          }
+        }
+        console.log('[DEBUG consumeCharacterDuplicates] After loop - consumed:', consumed, 'levelBefore:', levelBefore, 'levelAfter:', level);
         if(consumed > 0){ chars.owned[characterId] = Math.max(1, chars.owned[characterId] - consumed); chars.enhancements[characterId] = { level, progress }; }
         return { consumed, levelBefore, levelAfter: level, progressBefore, progressAfter: progress, isMax: !getEnhancementRequirement(level) };
       }
-      function performCharacterEnhancement(characterId, opts){ opts = opts||{}; const consumeAll = !!opts.consumeAll; const info = characterEnhancementState(characterId); if(info.isMax){ return { status:'max' }; } const available = info.available; if(available <= 0){ return { status:'no-dup' }; } const targetUse = info.next ? Math.max(1, info.next.cost - info.progress) : 0; const use = consumeAll ? available : Math.min(available, targetUse); const result = consumeCharacterDuplicates(characterId, use); if(result.consumed <= 0){ return { status:'no-dup' }; } const chars = ensureCharacterState(); if(userProfile){ userProfile.characters = chars; } markProfileDirty(); updateCharacterList(); updateInventoryView(); return { status: result.levelAfter > result.levelBefore ? 'level-up' : 'progress', result }; }
+      function performCharacterEnhancement(characterId, opts){
+        opts = opts||{};
+        const consumeAll = !!opts.consumeAll;
+        const info = characterEnhancementState(characterId);
+        console.log('[DEBUG performCharacterEnhancement] characterId:', characterId, 'info:', info, 'opts:', opts);
+        if(info.isMax){ return { status:'max' }; }
+        const available = info.available;
+        if(available <= 0){
+          console.log('[DEBUG performCharacterEnhancement] available <= 0, returning no-dup');
+          return { status:'no-dup' };
+        }
+        // 캐릭터 강화는 중복 합성만 사용하므로, next.cost가 없으면 기본값 1 사용
+        const nextCost = requirementCost(info.next) || 1;
+        const targetUse = info.next ? Math.max(1, nextCost - info.progress) : 0;
+        console.log('[DEBUG performCharacterEnhancement] targetUse calculation - info.next:', info.next, 'nextCost:', nextCost, 'info.progress:', info.progress, 'targetUse:', targetUse);
+        const use = consumeAll ? available : Math.min(available, targetUse);
+        console.log('[DEBUG performCharacterEnhancement] Final use amount - consumeAll:', consumeAll, 'available:', available, 'targetUse:', targetUse, 'use:', use);
+        const result = consumeCharacterDuplicates(characterId, use);
+        console.log('[DEBUG performCharacterEnhancement] consumeCharacterDuplicates result:', result);
+        if(result.consumed <= 0){ return { status:'no-dup' }; }
+        const chars = ensureCharacterState();
+        if(userProfile){ userProfile.characters = chars; }
+        markProfileDirty();
+        updateCharacterList();
+        updateInventoryView();
+        return { status: result.levelAfter > result.levelBefore ? 'level-up' : 'progress', result };
+      }
 
       function getActiveCharacterId(){
         const chars = ensureCharacterState();
@@ -6197,15 +6300,33 @@ ${parts.join(', ')}`;
         `);
 
         // 강화 정보 섹션
-        if(enh.level > 0){
+        sections.push(`
+          <div class="detail-section enhancement-info">
+            <h4>강화 정보</h4>
+            <div class="muted">
+              <p>강화 레벨: <strong>Lv.${enh.level}</strong> (배율: <strong>${formatMultiplier(enhancementMultiplier)}×</strong>)</p>
+              <p>진행도: ${enh.progress}/${enh.nextCost || enh.next?.cost || 0} · 사용 가능 중복: ${formatNum(enh.available)}</p>
+              ${enh.isMax ? '<p class="success"><strong>✨ 최대 강화 달성!</strong></p>' : ''}
+            </div>
+          </div>
+        `);
+
+        if(CHARACTER_ENH_REQUIREMENTS.length){
+          const reqRows = CHARACTER_ENH_REQUIREMENTS.map((req)=>{
+            const highlight = req.fromLevel === enh.level ? ' style="background: rgba(90, 170, 255, 0.12);"' : '';
+            const fromLabel = req.fromLevel >= 0 ? `Lv.${req.fromLevel}` : 'Lv.0';
+            return `<tr${highlight}><td>${fromLabel}</td><td>${req.label}</td><td>${formatNum(req.cost)}개</td><td>${formatNum(req.cumulative)}개</td></tr>`;
+          }).join('');
           sections.push(`
-            <div class="detail-section enhancement-info">
-              <h4>강화 정보</h4>
-              <div class="muted">
-                <p>강화 레벨: <strong>Lv.${enh.level}</strong> (배율: <strong>${formatMultiplier(enhancementMultiplier)}×</strong>)</p>
-                <p>진행도: ${enh.progress}/${enh.next?.cost || 0} · 사용 가능 중복: ${formatNum(enh.available)}</p>
-                ${enh.isMax ? '<p class="success"><strong>✨ 최대 강화 달성!</strong></p>' : ''}
-              </div>
+            <div class="detail-section enhancement-reqs">
+              <h4>강화 필요 중복</h4>
+              <p class="muted small">(단계별 필요량 · 누적 소모량)</p>
+              <table class="detail-table" aria-label="캐릭터 강화 필요 중복">
+                <thead>
+                  <tr><th>현재</th><th>다음 단계</th><th>필요 중복</th><th>누적</th></tr>
+                </thead>
+                <tbody>${reqRows}</tbody>
+              </table>
             </div>
           `);
         }
@@ -7533,7 +7654,7 @@ ${parts.join(', ')}`;
           textWrap.appendChild(countEl);
           const dupEl = document.createElement('div');
           dupEl.className = 'muted small';
-          dupEl.textContent = enh.isMax ? '강화: MAX' : `강화 Lv.${enh.level} (${enh.progress}/${enh.next?.cost || 0}) · 중복 ${formatNum(enh.available)}`;
+          dupEl.textContent = enh.isMax ? '강화: MAX' : `강화 Lv.${enh.level} (${enh.progress}/${enh.nextCost || enh.next?.cost || 0}) · 중복 ${formatNum(enh.available)}`;
           textWrap.appendChild(dupEl);
           // 실제 전투 스탯 계산 (캐릭터+장비+펫)
           const baseStats = def.stats || {};
@@ -7628,16 +7749,35 @@ ${parts.join(', ')}`;
             enhanceBtn.type = 'button';
             enhanceBtn.className = 'character-enhance';
             enhanceBtn.textContent = '강화';
+            console.log('[DEBUG] 캐릭터 강화 버튼 생성 및 이벤트 등록:', id, 'available:', enh.available);
             enhanceBtn.addEventListener('click', (event)=>{
+              console.log('[DEBUG] 캐릭터 강화 버튼 클릭됨:', id);
               event.stopPropagation();
               const res = performCharacterEnhancement(id, { consumeAll: false });
+              console.log('[DEBUG] performCharacterEnhancement 결과:', res);
               if(res.status === 'no-dup'){
                 setForgeMsg('캐릭터 중복이 부족합니다.', 'warn');
+                showForgeEffect('fail');
+                alert('❌ 캐릭터 중복이 부족합니다.');
               } else if(res.status === 'level-up'){
-                setForgeMsg(`캐릭터 강화! Lv.${res.result.levelBefore} → Lv.${res.result.levelAfter}`, 'ok');
+                const next = characterEnhancementState(id);
+                const nextTotal = next.nextCost || next.next?.cost || 0;
+                const remaining = nextTotal > 0 ? Math.max(0, nextTotal - next.progress) : 0;
+                const msg = `캐릭터 강화 성공! Lv.${res.result.levelBefore} → Lv.${res.result.levelAfter}`;
+                const detail = next.isMax ? '다음 단계 없음 (MAX)' : `다음 단계 필요 중복 ${formatNum(nextTotal)}개 (남은 ${formatNum(remaining)}개)`;
+                setForgeMsg(`${msg} · ${detail}`, 'ok');
+                showForgeEffect('success');
+                alert(`✨ ${msg}\n\n${detail}`);
               } else if(res.status === 'progress'){
                 const next = characterEnhancementState(id);
-                setForgeMsg(`캐릭터 강화 진행: Lv.${next.level} (${next.progress}/${next.next?.cost || 0})`, 'ok');
+                const nextTotal = next.nextCost || next.next?.cost || 0;
+                const remaining = nextTotal > 0 ? Math.max(0, nextTotal - next.progress) : 0;
+                const msg = nextTotal > 0
+                  ? `캐릭터 강화 진행: Lv.${next.level} (${next.progress}/${nextTotal}) · 남은 중복 ${formatNum(remaining)}`
+                  : '캐릭터 강화 진행: MAX 단계에 도달했습니다.';
+                setForgeMsg(msg, 'ok');
+                showForgeEffect('progress');
+                alert(`📈 ${msg}`);
               }
             });
             actions.appendChild(enhanceBtn);
@@ -7650,11 +7790,27 @@ ${parts.join(', ')}`;
               const res = performCharacterEnhancement(id, { consumeAll: true });
               if(res.status === 'no-dup'){
                 setForgeMsg('캐릭터 중복이 부족합니다.', 'warn');
+                showForgeEffect('fail');
+                alert('❌ 캐릭터 중복이 부족합니다.');
               } else if(res.status === 'level-up'){
-                setForgeMsg(`캐릭터 강화! Lv.${res.result.levelBefore} → Lv.${res.result.levelAfter}`, 'ok');
+                const next = characterEnhancementState(id);
+                const nextTotal = next.nextCost || next.next?.cost || 0;
+                const remaining = nextTotal > 0 ? Math.max(0, nextTotal - next.progress) : 0;
+                const msg = `캐릭터 모두 강화 성공! Lv.${res.result.levelBefore} → Lv.${res.result.levelAfter}`;
+                const detail = next.isMax ? '다음 단계 없음 (MAX)' : `다음 단계 필요 중복 ${formatNum(nextTotal)}개 (남은 ${formatNum(remaining)}개)`;
+                setForgeMsg(`${msg} · ${detail}`, 'ok');
+                showForgeEffect('success');
+                alert(`✨ ${msg}\n\n${detail}`);
               } else if(res.status === 'progress'){
                 const next = characterEnhancementState(id);
-                setForgeMsg(`캐릭터 강화 진행: Lv.${next.level} (${next.progress}/${next.next?.cost || 0})`, 'ok');
+                const nextTotal = next.nextCost || next.next?.cost || 0;
+                const remaining = nextTotal > 0 ? Math.max(0, nextTotal - next.progress) : 0;
+                const msg = nextTotal > 0
+                  ? `캐릭터 강화 진행: Lv.${next.level} (${next.progress}/${nextTotal}) · 남은 중복 ${formatNum(remaining)}`
+                  : '캐릭터 강화 진행: MAX 단계에 도달했습니다.';
+                setForgeMsg(msg, 'ok');
+                showForgeEffect('progress');
+                alert(`📈 ${msg}`);
               }
             });
             actions.appendChild(enhanceAllBtn);
@@ -8037,6 +8193,7 @@ ${parts.join(', ')}`;
           if(els.forgeAuto) els.forgeAuto.disabled = true;
           if(els.forgeTicket) els.forgeTicket.disabled = true;
           if(els.forgeTicketProtect) els.forgeTicketProtect.disabled = true;
+          if(els.forgeTicketAuto) els.forgeTicketAuto.disabled = true;
           return;
         }
         const info = gearEnhancementState(item);

@@ -227,7 +227,15 @@ export function clampEnhancementProgress(currentLevel, progress) {
   if (!requirement) {
     return 0;
   }
-  const max = Math.max(0, requirement.cost - 1);
+  const cost = typeof requirement.cost === 'number' && isFinite(requirement.cost) && requirement.cost > 0
+    ? requirement.cost
+    : typeof requirement.ticketCost === 'number' && isFinite(requirement.ticketCost) && requirement.ticketCost > 0
+      ? requirement.ticketCost
+      : 0;
+  if (cost <= 0) {
+    return 0;
+  }
+  const max = Math.max(0, cost - 1);
   return clampNumber(progress, 0, max, 0);
 }
 
