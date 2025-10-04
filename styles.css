@@ -561,6 +561,28 @@
       }
       .auth-card { width:100%; max-width:420px; position: relative; z-index: 1; }
       .auth-header { text-align:center; margin-bottom:16px; }
+      .auth-header h1 {
+        font-size: 28px;
+        font-weight: 800;
+        background: linear-gradient(135deg, #ffd166, #ff9bf8, #6aa9ff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        text-shadow: 0 0 30px rgba(255, 209, 102, 0.5);
+        letter-spacing: -0.02em;
+        margin: 0 0 8px 0;
+        animation: titleGlow 3s ease-in-out infinite;
+      }
+      .auth-header p {
+        font-size: 14px;
+        color: rgba(231, 236, 243, 0.9);
+        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+        font-weight: 500;
+      }
+      @keyframes titleGlow {
+        0%, 100% { filter: brightness(1); }
+        50% { filter: brightness(1.2); }
+      }
       .auth-actions { display:flex; justify-content:space-between; gap:8px; margin-top:12px; }
       .auth-actions a { font-size:12px; color: var(--accent-2); }
       .auth-message { min-height:18px; font-size:12px; margin-top:10px; color: var(--muted); }
